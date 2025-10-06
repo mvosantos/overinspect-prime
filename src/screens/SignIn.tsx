@@ -54,11 +54,12 @@ export default function SignIn({ theme, setTheme }: SignInProps) {
       console.log('Login bem-sucedido');
     },
     onError: () => {
+      console.error('Erro de autenticação');
       toast.current?.show({
         severity: 'error',
         summary: 'Erro',
         detail: 'Login/Senha errado(s)',
-        life: 3000,
+        life: 2000,
       });
     },
   });
@@ -78,7 +79,7 @@ export default function SignIn({ theme, setTheme }: SignInProps) {
 
   return (
     <main className="h-screen flex flex-col md:flex-row w-full transition-colors">
-      <Toast ref={toast} position="bottom-right" />
+      <Toast ref={toast} position="top-right" />
       {/* Imagem de Fundo */}
       <div
         id="divBg"

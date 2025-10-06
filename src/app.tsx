@@ -5,6 +5,7 @@ import ForgotPassword from "./screens/ForgotPassword";
 import { Routes, Route } from "react-router-dom";
 import Home from "./screens/Home";
 import { PrivateRoute } from './components/PrivateRoute';
+import AuthLayout from "./layouts/AuthLayout";
 
 export default function App() {
   const { theme, setTheme } = useTheme();
@@ -17,7 +18,9 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/home" element={
           <PrivateRoute>
-            <Home />
+            <AuthLayout>
+              <Home />
+            </AuthLayout>
           </PrivateRoute>
         } />
       </Routes>

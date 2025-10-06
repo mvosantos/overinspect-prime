@@ -8,7 +8,7 @@ interface ThemeToggleProps {
 const ThemeToggle: React.FC<ThemeToggleProps> = ({ theme, setTheme }) => (
   <button
     type="button"
-    className="p-2 rounded bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow"
+    className="p-2 rounded bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-100 shadow cursor-pointer transition-colors"
     onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
     aria-label="Alternar tema"
   >

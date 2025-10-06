@@ -67,7 +67,7 @@ export default function LanguageSelector({ userName, flag_layout }: LanguageSele
               key={lang.code}
               src={lang.flag_md} 
               alt={`Bandeira de ${lang.name}`} 
-              className={`h-auto rounded-4xl w-8 transition-opacity ${lang.code === i18n.language ? 'opacity-100 ring-2 ring-blue-500' : 'opacity-60 hover:opacity-100'}`}
+              className={`h-auto rounded-4xl w-8 transition-opacity ${lang.code === i18n.language ? 'opacity-100' : 'opacity-60 hover:opacity-100'}`}
               onClick={() => handleLanguageChange(lang.code)} 
             />
           ))}
