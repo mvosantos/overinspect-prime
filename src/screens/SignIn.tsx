@@ -4,7 +4,7 @@ import React from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "primereact/button";
@@ -23,6 +23,7 @@ export default function SignIn({ theme, setTheme }: SignInProps) {
   const { t } = useTranslation("translation");
 
   const [isLoading, setIsLoading] = React.useState(false);
+  const navigate = useNavigate();
 
   // Schema de validação com Zod
   const schema = z.object({
@@ -44,8 +45,8 @@ export default function SignIn({ theme, setTheme }: SignInProps) {
   const onSubmit = (data: FormData) => {
     setIsLoading(true);
     setTimeout(() => {
-      setIsLoading(false);
       console.log("Tentativa de login com:", data.email, data.password);
+      navigate('/home');
     }, 1500);
   };
 
@@ -87,7 +88,7 @@ export default function SignIn({ theme, setTheme }: SignInProps) {
           title={cardHeaderTemplate}
           className="w-full max-w-md shadow-2xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
         >
-          <div className="p-card-content">
+          <div>
             <form onSubmit={handleSubmit(onSubmit)}>
               {/* Campo de Email */}
               <div>
