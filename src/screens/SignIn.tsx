@@ -1,6 +1,5 @@
-// src/pages/SignIn.tsx
-
-import React from "react";
+import { useAuth } from '../contexts/AuthContext';
+import { useMutation } from '@tanstack/react-query';
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,6 +10,7 @@ import { Button } from "primereact/button";
 import { Card } from "primereact/card";
 import { InputText } from "primereact/inputtext";
 import { Divider } from "primereact/divider";
+import { Toast } from 'primereact/toast';
 import LanguageSelector from "../components/LanguageSelector";
 import ThemeToggle from "../components/ThemeToggle";
 
@@ -19,16 +19,19 @@ interface SignInProps {
   setTheme: (theme: string) => void;
 }
 
+import { useRef } from 'react';
+
 export default function SignIn({ theme, setTheme }: SignInProps) {
   const { t } = useTranslation("translation");
 
-  const [isLoading, setIsLoading] = React.useState(false);
   const navigate = useNavigate();
+  const { login, authError } = useAuth();
+  const toast = useRef<Toast>(null);
 
   // Schema de validação com Zod
   const schema = z.object({
     email: z.string().email({ message: "E-mail inválido" }),
-    password: z.string().min(6, { message: "A senha deve ter pelo menos 6 caracteres" }),
+    password: z.string().min(4, { message: "A senha deve ter pelo menos 4 caracteres" }),
   });
 
   type FormData = z.infer<typeof schema>;
@@ -42,12 +45,26 @@ export default function SignIn({ theme, setTheme }: SignInProps) {
   });
 
 
-  const onSubmit = (data: FormData) => {
-    setIsLoading(true);
-    setTimeout(() => {
-      console.log("Tentativa de login com:", data.email, data.password);
+  const mutation = useMutation({
+    mutationFn: async (data: FormData) => {
+      await login(data.email, data.password);
+    },
+    onSuccess: () => {
       navigate('/home');
-    }, 1500);
+      console.log('Login bem-sucedido');
+    },
+    onError: () => {
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Erro',
+        detail: 'Login/Senha errado(s)',
+        life: 3000,
+      });
+    },
+  });
+
+  const onSubmit = (data: FormData) => {
+    mutation.mutate(data);
   };
 
   const cardHeaderTemplate = (
@@ -61,6 +78,7 @@ export default function SignIn({ theme, setTheme }: SignInProps) {
 
   return (
     <main className="h-screen flex flex-col md:flex-row w-full transition-colors">
+      <Toast ref={toast} position="bottom-right" />
       {/* Imagem de Fundo */}
       <div
         id="divBg"
@@ -108,6 +126,9 @@ export default function SignIn({ theme, setTheme }: SignInProps) {
                 {errors.email && (
                   <span className="text-xs text-red-500">{errors.email.message}</span>
                 )}
+                {authError && (
+                  <span className="text-xs text-red-500 block mt-2">{authError}</span>
+                )}
               </div>
               {/* Campo de Senha */}
               <div className="mt-4">
@@ -137,15 +158,11 @@ export default function SignIn({ theme, setTheme }: SignInProps) {
               {/* Botão de Login */}
               <div className="mt-6">
                 <Button
-                  label={
-                    isLoading ? `${t("common:loading")}...` : t("common:enter")
-                  }
-                  icon={isLoading ? "pi pi-spin pi-spinner" : "pi pi-sign-in"}
+                  label={mutation.status === 'pending' ? `${t("common:loading")}...` : t("common:enter")}
+                  icon={mutation.status === 'pending' ? "pi pi-spin pi-spinner" : "pi pi-sign-in"}
                   type="submit"
-                  disabled={isLoading}
-                  className={`w-full ${
-                    isLoading ? "p-button-secondary" : "p-button-primary"
-                  }`}
+                  disabled={mutation.status === 'pending'}
+                  className={`w-full ${mutation.status === 'pending' ? "p-button-secondary" : "p-button-primary"}`}
                 />
               </div>
             </form>

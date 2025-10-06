@@ -4,6 +4,7 @@ import SignIn from "./screens/SignIn";
 import ForgotPassword from "./screens/ForgotPassword";
 import { Routes, Route } from "react-router-dom";
 import Home from "./screens/Home";
+import { PrivateRoute } from './components/PrivateRoute';
 
 export default function App() {
   const { theme, setTheme } = useTheme();
@@ -14,7 +15,11 @@ export default function App() {
       <Routes>
         <Route path="/" element={<SignIn theme={theme} setTheme={setTheme} />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/home" element={<Home />} />
+        <Route path="/home" element={
+          <PrivateRoute>
+            <Home />
+          </PrivateRoute>
+        } />
       </Routes>
     </PrimeReactProvider>
   );
