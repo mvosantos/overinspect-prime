@@ -1,42 +1,75 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 interface PermissionContextType {
   permissions: string[];
   loading: boolean;
+  refreshPermissions: () => Promise<void>;
 }
 
-const PermissionContext = createContext<PermissionContextType>({ permissions: [], loading: true });
+const PermissionContext = createContext<PermissionContextType>({ permissions: [], loading: true, refreshPermissions: async () => {} });
 
 export function PermissionProvider({ children }: { children: React.ReactNode }) {
   const { token } = useAuth();
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Explicit refresh function exposed to consumers
+  const refreshPermissions = useCallback(async () => {
+    setLoading(true);
+    if (!token) {
+      setPermissions([]);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await api.get('/admin/permission', { params: { per_page: 200 } });
+      const names = res.data.data.map((p: any) => p.name);
+      setPermissions(names);
+      try {
+        localStorage.setItem('user_permissions', JSON.stringify(names));
+      } catch {
+        // ignore localStorage failures
+      }
+    } catch {
+      setPermissions([]);
+    }
+    setLoading(false);
+  }, [token]);
+
   useEffect(() => {
     async function fetchPermissions() {
-      if (token) {
-        setLoading(true);
+      setLoading(true);
+      // Try localStorage first
+      const cached = localStorage.getItem('user_permissions');
+      if (cached) {
         try {
-          const res = await api.get('/admin/permission', { params: { per_page: 200 } });
-          setPermissions(res.data.data.map((p: any) => p.name));
+          const parsed = JSON.parse(cached) as string[];
+          setPermissions(parsed);
+          setLoading(false);
+          return;
         } catch {
-          setPermissions([]);
+          // fallthrough to fetch from API
         }
-        setLoading(false);
+      }
+
+      if (token) {
+        await refreshPermissions();
       } else {
         setPermissions([]);
         setLoading(false);
       }
     }
+
     fetchPermissions();
-  }, [token]);
+  }, [token, refreshPermissions]);
 
   return (
-    <PermissionContext.Provider value={{ permissions, loading }}>
+    <PermissionContext.Provider value={{ permissions, loading, refreshPermissions }}>
       {children}
     </PermissionContext.Provider>
   );

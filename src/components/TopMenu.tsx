@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Menubar } from 'primereact/menubar';
-import { useQuery } from '@tanstack/react-query';
 import { menuItems, type MenuGroup } from '../config/MenuItem';
-import api from '../services/api';
+// ...existing code...
 import { Fragment } from 'react';
 import LanguageSelector from '../components/LanguageSelector';
 import ThemeToggle from '../components/ThemeToggle';
@@ -10,20 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { Button } from 'primereact/button';
 
-interface Permission {
-  id: string;
-  name: string;
-}
-
-function useUserPermissions() {
-  return useQuery({
-    queryKey: ['user-permissions'],
-    queryFn: async () => {
-      const res = await api.get('/admin/permission', { params: { per_page: 200 } });
-      return res.data.data.map((p: Permission) => p.name);
-    },
-  });
-}
+import { usePermissions } from '../contexts/PermissionContext';
 
 function filterMenuByPermissions(menu: MenuGroup[], permissions: string[]): MenuGroup[] {
   return menu
@@ -52,7 +38,7 @@ function mapMenuToMenubar(menu: MenuGroup[], t: (key: string) => string) {
 
 export default function TopMenu(props: any) {
   const { t } = useTranslation();
-  const { data: permissions, isLoading } = useUserPermissions();
+  const { permissions, loading: isLoading } = usePermissions();
   const { logout, token } = useAuth();
   // Decodificar nome/cargo do usuário do token JWT
   let userName = '';

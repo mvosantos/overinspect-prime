@@ -35,6 +35,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { token: jwt } = await apiLogin(username, password);
       saveToken(jwt);
       setToken(jwt);
+
+      // Fetch permissions immediately after successful login and cache in localStorage
+      try {
+        // dynamic import to avoid circular dependency issues
+        const apiModule = await import('../services/api');
+        type PermissionRes = { data: { data: Array<{ id: string; name: string }> } };
+        const res = (await apiModule.default.get('/admin/permission', { params: { per_page: 200 } })) as PermissionRes;
+        const names = res.data.data.map((p) => p.name);
+        localStorage.setItem('user_permissions', JSON.stringify(names));
+      } catch {
+        console.log('Failed to fetch permissions after login');
+      }
     } catch (err: unknown) {
       if (err instanceof Error) {
         setAuthError(err.message);
@@ -49,6 +61,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     removeToken();
     setToken(null);
+    try {
+      localStorage.removeItem('user_permissions');
+    } catch {
+      // ignore
+    }
   };
 
   return (
