@@ -13,7 +13,7 @@ const AuthLayout = ({ children }: AuthLayoutProps) => {
     <PermissionProvider>
       <div>
         <TopMenu theme={theme} setTheme={setTheme} />
-        <div style={{ marginTop: 60 }}>
+        <div>
           {children}
         </div>
       </div>

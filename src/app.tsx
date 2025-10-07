@@ -4,6 +4,8 @@ import SignIn from "./screens/SignIn";
 import ForgotPassword from "./screens/ForgotPassword";
 import { Routes, Route } from "react-router-dom";
 import Home from "./screens/Home";
+import SubsidiaryList from './screens/subsidiaries/SubsidiaryList';
+import SubsidiaryForm from './screens/subsidiaries/SubsidiaryForm';
 import { PrivateRoute } from './components/PrivateRoute';
 import AuthLayout from "./layouts/AuthLayout";
 
@@ -20,6 +22,27 @@ export default function App() {
           <PrivateRoute>
             <AuthLayout>
               <Home />
+            </AuthLayout>
+          </PrivateRoute>
+        } />
+        <Route path="/management/subsidiaries" element={
+          <PrivateRoute>
+            <AuthLayout>
+              <SubsidiaryList />
+            </AuthLayout>
+          </PrivateRoute>
+        } />
+        <Route path="/management/subsidiaries/:id/edit" element={
+          <PrivateRoute>
+            <AuthLayout>
+              <SubsidiaryForm />
+            </AuthLayout>
+          </PrivateRoute>
+        } />
+        <Route path="/subsidiaries/new/edit" element={
+          <PrivateRoute>
+            <AuthLayout>
+              <SubsidiaryForm />
             </AuthLayout>
           </PrivateRoute>
         } />
