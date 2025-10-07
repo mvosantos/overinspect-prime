@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Menubar } from 'primereact/menubar';
 import { menuItems, type MenuGroup } from '../config/MenuItem';
-// ...existing code...
 import { Fragment } from 'react';
 import LanguageSelector from '../components/LanguageSelector';
 import ThemeToggle from '../components/ThemeToggle';

@@ -1,5 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import type { ReactNode } from 'react';
 import TopMenu from '../components/TopMenu';
 import { useTheme } from '../hooks/useTheme';
