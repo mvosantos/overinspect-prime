@@ -4,15 +4,13 @@ import { Menu } from "primereact/menu";
 import type { MenuItem } from "primereact/menuitem"; // Importação type-only
 import { languages } from "../config/language";
 
-// Dados de exemplo para simular o seu "@/config/languages"
-
 interface LanguageSelectorProps {
   userName?: string;
   flag_layout: 'dropdown' | 'side-by-side'
 }
 
 export default function LanguageSelector({ userName, flag_layout }: LanguageSelectorProps) {
-  const { t, i18n } = useTranslation("translation"); // Use "translation" como namespace
+  const { t, i18n } = useTranslation("translation"); 
   
   const menu = useRef<Menu>(null); 
 
