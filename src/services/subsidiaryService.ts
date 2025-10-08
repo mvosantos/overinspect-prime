@@ -1,42 +1,11 @@
 import api from './api';
-
-export interface Company {
-  id: string;
-  name: string;
-}
-
-export interface Subsidiary {
-  id: string;
-  company_id: string;
-  name: string;
-  address?: string | null;
-  url_address?: string | null;
-  doc_number?: string | null;
-  created_at?: string;
-  updated_at?: string;
-  deleted_at?: string | null;
-  company?: Company;
-}
-
-export interface PaginatedResponse<T> {
-  current_page: number;
-  data: T[];
-  first_page_url: string;
-  from: number;
-  last_page: number;
-  last_page_url: string;
-  links: unknown[];
-  next_page_url: string | null;
-  path: string;
-  per_page: number;
-  prev_page_url: string | null;
-  to: number;
-  total: number;
-}
+import type { ApiPaginatedResponse, CrudService } from '../models/apiTypes';
+import type { Subsidiary, SubsidiaryListParams } from '../models/subsidiary';
+import type { Company } from '../models/company';
 
 const BASE = '/admin/subsidiary';
 
-export const listSubsidiaries = async (params: { page?: number; per_page?: number; limit?: number; search?: string; filters?: Record<string, string | undefined>; sort?: string | null; direction?: 'asc' | 'desc' | null }) => {
+const listSubsidiaries: CrudService<Subsidiary>['list'] = async (params: SubsidiaryListParams = {}) => {
   // Use 'limit' param for page size (default 20) and 'sort'/'direction' for ordering.
   const effectiveLimit = params.limit ?? params.per_page ?? 20;
   const merged = { ...params } as Record<string, unknown>;
@@ -52,14 +21,11 @@ export const listSubsidiaries = async (params: { page?: number; per_page?: numbe
   if (params.sort) merged.sort = params.sort;
   if (params.direction) merged.direction = params.direction;
 
-  // remove old per_page if present to avoid confusion
-  if ('per_page' in merged) delete merged.per_page;
-
-  const res = await api.get<PaginatedResponse<Subsidiary>>(BASE, { params: merged });
+  const res = await api.get<ApiPaginatedResponse<Subsidiary>>(BASE, { params: merged });
   return res.data;
 };
 
-export const getSubsidiary = async (id: string): Promise<Subsidiary | null> => {
+const getSubsidiary: CrudService<Subsidiary>['get'] = async (id: string): Promise<Subsidiary | null> => {
   const res = await api.get(`${BASE}/${id}`);
   // API sometimes returns { data: Subsidiary } (index-like) or the Subsidiary object directly (show endpoint)
   if (res.data && typeof res.data === 'object') {
@@ -69,7 +35,7 @@ export const getSubsidiary = async (id: string): Promise<Subsidiary | null> => {
   return null;
 };
 
-export const createSubsidiary = async (payload: Partial<Subsidiary>): Promise<Subsidiary> => {
+const createSubsidiary: CrudService<Subsidiary>['create'] = async (payload: Partial<Subsidiary>): Promise<Subsidiary> => {
   const res = await api.post(BASE, payload);
   const body = res.data;
   // If API returned full object, normalize and return
@@ -84,7 +50,7 @@ export const createSubsidiary = async (payload: Partial<Subsidiary>): Promise<Su
   throw new Error('Invalid response from create subsidiary');
 };
 
-export const updateSubsidiary = async (id: string, payload: Partial<Subsidiary>): Promise<Subsidiary> => {
+const updateSubsidiary: CrudService<Subsidiary>['update'] = async (id: string, payload: Partial<Subsidiary>): Promise<Subsidiary> => {
   await api.put(`${BASE}/${id}`, payload);
   // After update, fetch fresh resource
   const fresh = await getSubsidiary(id);
@@ -92,7 +58,7 @@ export const updateSubsidiary = async (id: string, payload: Partial<Subsidiary>)
   return fresh;
 };
 
-export const deleteSubsidiary = async (id: string) => {
+const deleteSubsidiary: CrudService<Subsidiary>['remove'] = async (id: string) => {
   const res = await api.delete(`${BASE}/${id}`);
   return res.data;
 };
@@ -102,11 +68,16 @@ export const listCompanies = async () => {
   return res.data.data;
 };
 
-export default {
-  listSubsidiaries,
-  getSubsidiary,
-  createSubsidiary,
-  updateSubsidiary,
-  deleteSubsidiary,
+
+
+// Maintain backward-compatible default export with both old function names and new contract
+const defaultExport: CrudService<Subsidiary> & { listCompanies(): Promise<Company[]> } = {
+  list: listSubsidiaries,
+  get: getSubsidiary,
+  create: createSubsidiary,
+  update: updateSubsidiary,
+  remove: deleteSubsidiary,
   listCompanies,
 };
+
+export default defaultExport;

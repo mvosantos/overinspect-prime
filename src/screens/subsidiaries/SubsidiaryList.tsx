@@ -7,8 +7,8 @@ import { InputText } from 'primereact/inputtext';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { listSubsidiaries, deleteSubsidiary } from '../../services/subsidiaryService';
-import type { Subsidiary, PaginatedResponse } from '../../services/subsidiaryService';
+import subsidiaryService from '../../services/subsidiaryService';
+import type { Subsidiary, PaginatedResponse } from '../../models/subsidiary';
 import { usePermissions } from '../../contexts/PermissionContext';
 
 export default function SubsidiaryList() {
@@ -29,11 +29,11 @@ export default function SubsidiaryList() {
 
   const { data, isLoading } = useQuery<PaginatedResponse<Subsidiary> | undefined>({
     queryKey: ['subsidiaries', page, perPage, globalFilter, filters, sortField, sortOrder],
-    queryFn: () => listSubsidiaries({ page, limit: perPage, search: globalFilter, filters, sort: sortField, direction: sortOrder }),
+    queryFn: () => subsidiaryService.list({ page, limit: perPage, search: globalFilter, filters, sort: sortField, direction: sortOrder }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteSubsidiary(id),
+    mutationFn: (id: string) => subsidiaryService.remove(id),
     onSuccess: () => {
       toast.current?.show({ severity: 'success', summary: 'Sucesso', detail: 'Registro excluído' });
       queryClient.invalidateQueries({ queryKey: ['subsidiaries'] });

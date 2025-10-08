@@ -9,7 +9,8 @@ import { Toast } from 'primereact/toast';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import subsidiaryService from '../../services/subsidiaryService';
-import type { Subsidiary, Company } from '../../services/subsidiaryService';
+import type { Subsidiary } from '../../models/subsidiary';
+import type { Company } from '../../models/company';
 import { Controller, useForm } from 'react-hook-form';
 
 const schema = z.object({
@@ -33,7 +34,7 @@ export default function SubsidiaryForm() {
   const { register, handleSubmit, setValue, formState: { errors }, control } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   const createMutation = useMutation({
-    mutationFn: (payload: FormValues) => subsidiaryService.createSubsidiary(payload),
+    mutationFn: (payload: FormValues) => subsidiaryService.create(payload),
     onSuccess: (subsidiary) => {
       toast.current?.show({ severity: 'success', summary: 'Sucesso', detail: 'Registro criado' });
       if (subsidiary?.id) {
@@ -51,7 +52,7 @@ export default function SubsidiaryForm() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: FormValues }) => subsidiaryService.updateSubsidiary(id, payload),
+    mutationFn: ({ id, payload }: { id: string; payload: FormValues }) => subsidiaryService.update(id, payload),
     onSuccess: (subsidiary) => {
       toast.current?.show({ severity: 'success', summary: 'Sucesso', detail: 'Registro atualizado' });
       if (subsidiary) {
@@ -66,7 +67,7 @@ export default function SubsidiaryForm() {
     },
   });
 
-  const { data: existing } = useQuery<Subsidiary | null>({ queryKey: ['subsidiary', id], queryFn: () => id ? subsidiaryService.getSubsidiary(id) : Promise.resolve(null), enabled: !!id });
+  const { data: existing } = useQuery<Subsidiary | null>({ queryKey: ['subsidiary', id], queryFn: () => id ? subsidiaryService.get(id) : Promise.resolve(null), enabled: !!id });
 
   useEffect(() => {
     if (existing) {
@@ -121,7 +122,6 @@ export default function SubsidiaryForm() {
           </div>
 
           <div className="flex justify-end gap-2 mt-4">
-            <Button label="Cancelar" className="p-button-secondary" onClick={() => navigate('/subsidiaries')} />
             <Button label="Salvar" type="submit" />
           </div>
         </form>
