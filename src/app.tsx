@@ -6,6 +6,8 @@ import { Routes, Route } from "react-router-dom";
 import Home from "./screens/Home";
 import SubsidiaryList from './screens/subsidiaries/SubsidiaryList';
 import SubsidiaryForm from './screens/subsidiaries/SubsidiaryForm';
+import CompanyList from './screens/companies/CompanyList';
+import CompanyForm from './screens/companies/CompanyForm';
 import { PrivateRoute } from './components/PrivateRoute';
 import AuthLayout from "./layouts/AuthLayout";
 
@@ -43,6 +45,27 @@ export default function App() {
           <PrivateRoute>
             <AuthLayout>
               <SubsidiaryForm />
+            </AuthLayout>
+          </PrivateRoute>
+        } />
+        <Route path="/management/companies" element={
+          <PrivateRoute>
+            <AuthLayout>
+              <CompanyList />
+            </AuthLayout>
+          </PrivateRoute>
+        } />
+        <Route path="/management/companies/:id/edit" element={
+          <PrivateRoute>
+            <AuthLayout>
+              <CompanyForm />
+            </AuthLayout>
+          </PrivateRoute>
+        } />
+        <Route path="/companies/new/edit" element={
+          <PrivateRoute>
+            <AuthLayout>
+              <CompanyForm />
             </AuthLayout>
           </PrivateRoute>
         } />
