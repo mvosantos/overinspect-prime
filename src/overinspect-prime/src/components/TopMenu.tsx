@@ -1,4 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+Here are the contents for the file `src/components/TopMenu.tsx`:
+
 import { Menubar } from 'primereact/menubar';
 import { menuItems, type MenuGroup } from '../config/MenuItem';
 import { Fragment } from 'react';
@@ -39,7 +40,6 @@ export default function TopMenu(props: any) {
   const { t } = useTranslation();
   const { permissions, loading: isLoading } = usePermissions();
   const { logout, token } = useAuth();
-  // Decodificar nome/cargo do usuário do token JWT
   let userName = '';
   let userRole = '';
   if (token) {
@@ -59,7 +59,7 @@ export default function TopMenu(props: any) {
       <span style={{ fontWeight: 500 }}>{userName}</span>
       {userRole && <span style={{ fontSize: 12, color: '#888' }}>({userRole})</span>}
       <LanguageSelector flag_layout="side-by-side" userName={userName} />
-  <ThemeToggle theme={props.theme} setTheme={props.setTheme} />
+      <ThemeToggle theme={props.theme} setTheme={props.setTheme} />
       <Button
         onClick={logout} 
         icon="pi pi-sign-out"       
@@ -87,7 +87,7 @@ export default function TopMenu(props: any) {
           min-width: 250px !important;
         }
       `}</style>
-  <Menubar model={menubarModel} start={startTemplate} end={endTemplate} />
+      <Menubar model={menubarModel} start={startTemplate} end={endTemplate} />
     </Fragment>
   );
 }
