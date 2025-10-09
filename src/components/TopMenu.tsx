@@ -70,6 +70,13 @@ export default function TopMenu(props: any) {
     </div>
   );
 
+  const startTemplate = (
+    <a href="/" aria-label="Home - Overinspect" className="flex items-center gap-2">
+      <img src="/img/logopeq1.png" alt="Overinspect" className="h-8 sm:h-10 block" />
+      <span className="hidden sm:inline font-semibold text-lg text-foreground">Overinspect</span>
+    </a>
+  );
+
   return (
     <Fragment>
       <style>{`
@@ -80,7 +87,7 @@ export default function TopMenu(props: any) {
           min-width: 250px !important;
         }
       `}</style>
-      <Menubar model={menubarModel} end={endTemplate} />
+  <Menubar model={menubarModel} start={startTemplate} end={endTemplate} />
     </Fragment>
   );
 }

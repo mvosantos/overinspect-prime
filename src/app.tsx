@@ -10,6 +10,7 @@ import CompanyList from './screens/companies/CompanyList';
 import CompanyForm from './screens/companies/CompanyForm';
 import { PrivateRoute } from './components/PrivateRoute';
 import AuthLayout from "./layouts/AuthLayout";
+import ServiceOrderParameters from "./screens/service_orders/ServiceOrderParameters";
 
 export default function App() {
   const { theme, setTheme } = useTheme();
@@ -69,6 +70,14 @@ export default function App() {
             </AuthLayout>
           </PrivateRoute>
         } />
+
+        <Route path="/service-orders/parameters" element={
+          <PrivateRoute>
+            <AuthLayout>
+              <ServiceOrderParameters />
+            </AuthLayout>
+          </PrivateRoute>
+        } />        
       </Routes>
     </PrimeReactProvider>
   );
