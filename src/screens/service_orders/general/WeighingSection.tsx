@@ -8,12 +8,12 @@ type Props = { control?: Control<Record<string, unknown>> };
 export default function WeighingSection({ control }: Props) {
   return (
     <Card>
-      <div className="text-center mb-4">
-        <div className="inline-block px-4 py-1 rounded-md bg-teal-50 border border-teal-100">
+      <div className="mb-4 text-center">
+        <div className="inline-block w-full px-4 py-1 border border-teal-100 rounded-md bg-teal-50">
           <h3 className="text-lg font-semibold text-teal-700">Dados referente à Pesagem e Amostragem</h3>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label className="block mb-1">Peso bruto</label>
           <Controller control={control} name="gross_weight" render={({ field }) => <InputText className="w-full" value={(field.value as string) ?? ''} onChange={(e) => field.onChange((e.target as HTMLInputElement).value)} />} />

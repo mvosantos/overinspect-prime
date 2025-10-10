@@ -29,7 +29,7 @@ class ServiceTypeService extends BaseService {
   async updateFields(service_type_id: string, fields: unknown) {
     // PUT to /inspection/service-type-field/{service_type_id}
     const url = `/inspection/service-type-field/${service_type_id}`;
-    const res = await api.put(url, { service_type_fields: fields });
+    const res = await api.put(url, { values: fields });
     return res.data;
   }
 }

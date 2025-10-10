@@ -1,17 +1,17 @@
 import api from './api';
 import type { ApiPaginatedResponse, CrudService, ListParams } from '../models/apiTypes';
-import type { Company } from '../models/company';
+import type { Shipper } from '../models/Shipper';
 
-const BASE = '/admin/company';
+const BASE = '/admin/shipper';
 
-export type CompanyFilters = {
+export type ShipperFilters = {
   name?: string;
   document?: string;
 };
 
-export type CompanyListParams = ListParams<CompanyFilters>;
+export type ShipperListParams = ListParams<ShipperFilters>;
 
-const list: CrudService<Company>['list'] = async (params: CompanyListParams = {}) => {
+const list: CrudService<Shipper>['list'] = async (params: ShipperListParams = {}) => {
   const effectiveLimit = params.limit ?? params.per_page ?? 20;
   const merged = { ...params } as Record<string, unknown>;
   merged.limit = effectiveLimit;
@@ -28,44 +28,44 @@ const list: CrudService<Company>['list'] = async (params: CompanyListParams = {}
 
   if ('per_page' in merged) delete merged.per_page;
 
-  const res = await api.get<ApiPaginatedResponse<Company>>(BASE, { params: merged });
+  const res = await api.get<ApiPaginatedResponse<Shipper>>(BASE, { params: merged });
   return res.data;
 };
 
-const get: CrudService<Company>['get'] = async (id: string) => {
+const get: CrudService<Shipper>['get'] = async (id: string) => {
   const res = await api.get(`${BASE}/${id}`);
   if (res.data && typeof res.data === 'object') {
-    if ('data' in res.data && res.data.data) return res.data.data as Company;
-    return res.data as Company;
+    if ('data' in res.data && res.data.data) return res.data.data as Shipper;
+    return res.data as Shipper;
   }
   return null;
 };
 
-const create: CrudService<Company>['create'] = async (payload: Partial<Company>) => {
+const create: CrudService<Shipper>['create'] = async (payload: Partial<Shipper>) => {
   const res = await api.post(BASE, payload);
   const body = res.data;
   const maybe = (body && typeof body === 'object') ? (body.data ?? body) : null;
   if (maybe && maybe.id) {
     const hasFields = ('name' in maybe) || ('id' in maybe);
-    if (hasFields) return maybe as Company;
-    return (await get(maybe.id)) as Company;
+    if (hasFields) return maybe as Shipper;
+    return (await get(maybe.id)) as Shipper;
   }
-  throw new Error('Invalid response from create company');
+  throw new Error('Invalid response from create shipper');
 };
 
-const update: CrudService<Company>['update'] = async (id: string, payload: Partial<Company>) => {
+const update: CrudService<Shipper>['update'] = async (id: string, payload: Partial<Shipper>) => {
   await api.put(`${BASE}/${id}`, payload);
   const fresh = await get(id);
-  if (!fresh) throw new Error('Failed to fetch company after update');
+  if (!fresh) throw new Error('Failed to fetch shipper after update');
   return fresh;
 };
 
-const remove: CrudService<Company>['remove'] = async (id: string) => {
+const remove: CrudService<Shipper>['remove'] = async (id: string) => {
   const res = await api.delete(`${BASE}/${id}`);
   return res.data;
 };
 
-const service: CrudService<Company> & { listAll?: () => Promise<Company[]> } = {
+const shipperService: CrudService<Shipper> & { listAll?: () => Promise<Shipper[]> } = {
   list,
   get,
   create,
@@ -73,4 +73,4 @@ const service: CrudService<Company> & { listAll?: () => Promise<Company[]> } = {
   remove,
 };
 
-export default service;
+export default shipperService;

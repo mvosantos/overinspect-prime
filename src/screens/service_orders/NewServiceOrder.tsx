@@ -29,6 +29,7 @@ export default function NewServiceOrder() {
   const [selectedServiceTypeId, setSelectedServiceTypeId] = useState<string | null>(null);
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
   type ServiceTypeField = { name: string; label?: string; default_value?: unknown; visible?: boolean; required?: boolean; field_type?: string | null };
+  type FieldMetaLocal = { name: string; visible?: boolean; required?: boolean; default_value?: unknown };
   const [serviceTypeFields, setServiceTypeFields] = useState<ServiceTypeField[]>([]);
   const [zodSchema, setZodSchema] = useState<z.ZodObject<Record<string, ZodTypeAny>> | null>(null);
 
@@ -106,7 +107,7 @@ export default function NewServiceOrder() {
 
   // react-hook-form setup (schema will be set dynamically)
   const methods = useForm({ resolver: zodSchema ? zodResolver(zodSchema) : undefined });
-  const { register, control, handleSubmit, reset, formState, setValue } = methods;
+  const { register, control, handleSubmit, reset, formState, setValue, getValues } = methods;
 
   const onSubmit = handleSubmit((data) => {
     const payload: Record<string, unknown> = { ...data } as Record<string, unknown>;
@@ -125,10 +126,10 @@ export default function NewServiceOrder() {
     }
 
     // Normalize services array if present
-    const maybeServices = (payload as unknown as Record<string, unknown>)['services'];
+    const maybeServices = (payload && typeof payload === 'object' ? (payload as Record<string, unknown>)['services'] : undefined);
     if (Array.isArray(maybeServices)) {
       const normalized = maybeServices.map((s) => {
-        const item = s as Record<string, unknown>;
+        const item = (s && typeof s === 'object') ? (s as Record<string, unknown>) : {} as Record<string, unknown>;
         const unit = Number(String(item.unit_price ?? 0));
         const qty = Math.floor(Number(String(item.quantity ?? 0)) || 0);
         const total = unit * qty;
@@ -176,7 +177,49 @@ export default function NewServiceOrder() {
                 <GeneralDataSection serviceTypeId={selectedServiceTypeId} fields={serviceTypeFields} register={register} control={control} errors={formState.errors} setValue={setValue} />
                 { /*<ServicesSection serviceTypeId={selectedServiceTypeId} /> */}
                 <ServicesSection />
-                <DatesSitesSection control={control} />
+                {/* build fieldConfigs mapping expected by DatesSitesSection */}
+                {
+                  (() => {
+                    const byName: Record<string, ServiceTypeField | undefined> = {};
+                    (serviceTypeFields || []).forEach((f) => { if (f && typeof f === 'object' && 'name' in f) byName[f.name] = f; });
+                    const fieldConfigs = {
+                      operationStartsAtField: byName['operation_starts_at'],
+                      blDateField: byName['bl_date'],
+                      cargoArrivalDateField: byName['cargo_arrival_date'],
+                      operationFinishesAtField: byName['operation_finishes_at'],
+                      operationFinishDateField: byName['operation_finish_date'],
+                      firstSiteIdField: byName['first_site_id'],
+                      secondSiteIdField: byName['second_site_id'],
+                      thirdSiteIdField: byName['third_site_id'],
+                      stuffingSiteIdField: byName['stuffing_site_id'],
+                      departureSiteIdField: byName['departure_site_id'],
+                      destinationField: byName['destination'],
+                    } as Record<string, FieldMetaLocal | undefined>;
+
+                    const formErrorsMap: Record<string, string | undefined> = {};
+                    Object.entries(formState.errors || {}).forEach(([k, v]) => {
+                      const vv = v as unknown;
+                      if (vv && typeof vv === 'object' && 'message' in (vv as Record<string, unknown>)) {
+                        const m = (vv as Record<string, unknown>).message;
+                        formErrorsMap[k] = typeof m === 'string' ? m : undefined;
+                      } else {
+                        formErrorsMap[k] = undefined;
+                      }
+                    });
+
+                    return (
+                      <DatesSitesSection
+                        control={control}
+                        getValues={getValues}
+                        setValue={setValue}
+                        selectedServiceType={selectedServiceTypeId}
+                        t={t}
+                        fieldConfigs={fieldConfigs}
+                        formErrors={formErrorsMap}
+                      />
+                    );
+                  })()
+                }
                 <WeighingSection control={control} />
                 <AttachmentsSection parentType="service_order" parentId={currentOrderId} />
               </div>

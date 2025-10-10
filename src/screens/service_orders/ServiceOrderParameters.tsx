@@ -151,7 +151,8 @@ export default function ServiceOrderParameters() {
 
     const switchBody = (key: keyof FieldState, disabled?: (row: FieldState) => boolean) => (row: FieldState) => {
         const index = fields.findIndex(f => f.id === row.id);
-        const checked = (row as unknown as Record<string, unknown>)[key] as boolean | undefined;
+    const raw = row[key];
+    const checked = typeof raw === 'boolean' ? raw : !!raw;
         return (
             <InputSwitch
                 checked={!!checked}

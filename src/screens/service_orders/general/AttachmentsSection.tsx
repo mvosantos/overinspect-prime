@@ -25,11 +25,11 @@ export default function AttachmentsSection({ parentType = 'service_order', paren
     try {
       setLoading(true);
       const res = await serviceOrderService.get(parentId);
-      // assume backend returns object with attachments array or data.attachments
-      const body = res as unknown as Record<string, unknown>;
+      // serviceOrderService.get returns res.data already; parse defensively
       let items: Attachment[] = [];
-      if (body && typeof body === 'object') {
-        const maybeAttachments = (body.attachments ?? (body.data && (body.data as Record<string, unknown>).attachments)) as unknown;
+      if (res && typeof res === 'object') {
+        const r = res as Record<string, unknown>;
+        const maybeAttachments = r.attachments ?? (r.data && typeof r.data === 'object' ? (r.data as Record<string, unknown>).attachments : undefined);
         if (Array.isArray(maybeAttachments)) items = maybeAttachments as Attachment[];
       }
       setAttachments(items ?? []);
@@ -92,18 +92,17 @@ export default function AttachmentsSection({ parentType = 'service_order', paren
   return (
     <Card>
       <Toast ref={toast} />
-      <div className="text-center mb-4">
-        <div className="inline-block px-4 py-1 rounded-md bg-teal-50 border border-teal-100">
+      <div className="mb-4 text-center">
+        <div className="inline-block w-full px-4 py-1 border border-teal-100 rounded-md bg-teal-50">
           <h3 className="text-lg font-semibold text-teal-700">Anexos</h3>
         </div>
       </div>
 
-      <div className="mb-2 text-sm text-muted">Vinculado a: {parentType} {parentId ?? ''}</div>
 
       <FileUpload name="attachments" customUpload uploadHandler={customUpload} multiple accept="*" auto={false} />
 
       <div className="mt-4">
-        <h4 className="text-sm font-semibold mb-2">Arquivos</h4>
+        <h4 className="mb-2 text-sm font-semibold">Arquivos</h4>
         {loading ? (
           <div className="text-sm text-muted">Carregando...</div>
         ) : attachments.length === 0 ? (

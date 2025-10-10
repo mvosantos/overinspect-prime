@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getToken } from './authService';
 
-const API_URL = 'https://api-dev.overinspect.pro'; 
+const API_URL = 'https://api-dev.overinspect.com.br'; 
 
 const api = axios.create({
   baseURL: API_URL,

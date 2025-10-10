@@ -8,6 +8,7 @@ import serviceService from '../../../services/serviceService';
 import type { Service } from '../../../models/service';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
+import { normalizeListResponse } from '../../../utils/apiHelpers';
 
 export default function ServicesSection() {
   const { control, setValue, getValues } = useFormContext();
@@ -45,10 +46,11 @@ export default function ServicesSection() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
   const onServiceComplete = async (query: string) => {
     try {
-      const res = await serviceService.list({ per_page: 20, filters: { name: query } });
-  const items = (res && typeof res === 'object' && 'data' in res) ? (res as unknown as { data: Service[] }).data : (res as Service[]);
+  const res = await serviceService.list({ per_page: 20, filters: { name: query } });
+      const items = normalizeListResponse<Service>(res);
       setServiceSuggestions(items ?? []);
       const map: Record<string, Service> = {};
       (items ?? []).forEach((it) => { if (it?.id) { map[it.id] = it; qc.setQueryData(['service', it.id], it); } });
@@ -62,20 +64,20 @@ export default function ServicesSection() {
 
   return (
     <Card>
-      <div className="text-center mb-4">
-        <div className="inline-block px-4 py-1 rounded-md bg-teal-50 border border-teal-100">
+      <div className="mb-4 text-center">
+        <div className="inline-block w-full px-4 py-1 border border-teal-100 rounded-md bg-teal-50">
           <h3 className="text-lg font-semibold text-teal-700">Serviços a serem realizados</h3>
         </div>
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="mt-2 text-sm text-muted">Adicione os serviços (N registros)</div>
+        <div className="invisible mt-2 text-sm text-muted">Adicione os serviços clicando no ícone ao lado</div>
         <Button icon="pi pi-plus" className="p-button-text" onClick={addRow} />
       </div>
 
       <div className="mt-4 space-y-3">
         {fields.map((f, idx) => (
-          <div key={f.id} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
+          <div key={f.id} className="grid items-end grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
             <div>
               <label className="block mb-1">Serviço</label>
               <Controller
@@ -165,7 +167,7 @@ export default function ServicesSection() {
               />
             </div>
 
-            <div className="col-span-full flex justify-end gap-2">
+            <div className="flex justify-end gap-2 col-span-full">
               <Button icon="pi pi-trash" className="p-button-text p-button-danger" onClick={() => remove(idx)} />
             </div>
           </div>
