@@ -49,6 +49,7 @@ const resources = {
       no_records_found: "Nenhum registro encontrado",
       new_record: "Novo registro",
       save_record: "Salvar",
+      create_record: "Criar registro",
       save_parameters: "Salvar parâmetros",
       actions: "Ações",
       page: "Página",
@@ -83,6 +84,8 @@ const resources = {
       latitude: "Latitude",
       longitude: "Longitude",
       select_a_value: "Selecione um valor",
+      search: "Pesquisar",
+      general_search: "Busca geral",
       file_downloaded: "Arquivo baixado com sucesso!"
     },
     management: {
@@ -485,6 +488,7 @@ const resources = {
       no_records_found: "No records found",
       new_record: "New record",
       save_record: "Save record",
+      create_record: "Create record",
       actions: "Actions",
       page: "Page",
       showing: "Showing",
@@ -517,7 +521,10 @@ const resources = {
       internal_code: "Internal code",
       latitude: "Latitude",
       longitude: "Longitude",
-      select_a_value: "Select a value"
+      select_a_value: "Select a value",
+      search: "Search",
+      general_search: "General search",
+      file_downloaded: "File downloaded successfully!"
     },
     management: {
       management: "Management",
@@ -832,6 +839,7 @@ const resources = {
       no_records_found: "No hay registros",
       new_record: "Agregar",
       save_record: "Guardar",
+      create_record: "Crear registro",
       actions: "Acciones",
       page: "Página",
       showing: "Mostrando",
@@ -864,7 +872,10 @@ const resources = {
       internal_code: "Código interno",
       latitude: "Latitud",
       longitude: "Longitud",
-      select_a_value: "Seleccione una opción"
+      select_a_value: "Seleccione una opción",
+      search: "Buscar",
+      general_search: "Búsqueda general",
+      file_downloaded: "Arquivo baixado com sucesso!"
     },
     management: {
       management: "Gestión",

@@ -13,7 +13,8 @@ import AuthLayout from "./layouts/AuthLayout";
 import ServiceOrderParameters from "./screens/service_orders/ServiceOrderParameters";
 import ServiceOrderList from './screens/service_orders/ServiceOrderList';
 import NewServiceOrder from './screens/service_orders/NewServiceOrder';
-import BusinessUnitList from "./screens/business_units/BuusinessUnitList";
+import BusinessUnitList from "./screens/business_units/BusinessUnitList";
+import BusinessUnitForm from "./screens/business_units/BusinessUnitForm";
 
 export default function App() {
   const { theme, setTheme } = useTheme();
@@ -84,14 +85,14 @@ export default function App() {
         <Route path="/management/business-units/:id/edit" element={
           <PrivateRoute>
             <AuthLayout>
-              <CompanyForm />
+              <BusinessUnitForm />
             </AuthLayout>
           </PrivateRoute>
         } />
         <Route path="/business-units/new/edit" element={
           <PrivateRoute>
             <AuthLayout>
-              <CompanyForm />
+              <BusinessUnitForm />
             </AuthLayout>
           </PrivateRoute>
         } />        

@@ -12,16 +12,11 @@ import subsidiaryService from '../../services/subsidiaryService';
 import type { Subsidiary } from '../../models/subsidiary';
 import type { Company } from '../../models/company';
 import { Controller, useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
-const schema = z.object({
-  company_id: z.string().min(1, 'Empresa é obrigatória'),
-  name: z.string().min(1, 'Nome é obrigatório'),
-  doc_number: z.string().min(1, 'CPF/CNPJ é obrigatório'),
-});
-
-type FormValues = z.infer<typeof schema>;
 
 export default function SubsidiaryForm() {
+  const { t } = useTranslation(['subsidiaries', 'common']);
   const toast = useRef<Toast>(null);
   const navigate = useNavigate();
   const params = useParams();
@@ -29,14 +24,22 @@ export default function SubsidiaryForm() {
   const [currentId, setCurrentId] = useState<string | null>(id ?? null);
   const queryClient = useQueryClient();
 
-  const { data: companies } = useQuery<Company[]>({ queryKey: ['companies'], queryFn: () => subsidiaryService.listCompanies() });
+  const schema = z.object({
+    company_id: z.string().min(1, t('common:required_field')),
+    name: z.string().min(1, t('common:required_field')),
+    doc_number: z.string().min(1, t('common:required_field')),
+  });
+
+  type FormValues = z.infer<typeof schema>;
+
+  const { data: companies } = useQuery<Company[]>({ queryKey: ['subsidiaries'], queryFn: () => subsidiaryService.listCompanies() });
 
   const { register, handleSubmit, setValue, formState: { errors }, control } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   const createMutation = useMutation({
     mutationFn: (payload: FormValues) => subsidiaryService.create(payload),
     onSuccess: (subsidiary) => {
-      toast.current?.show({ severity: 'success', summary: 'Sucesso', detail: 'Registro criado' });
+      toast.current?.show({ severity: 'success', summary: t("common:success"), detail: t("common:record_created_successfully") });
       if (subsidiary?.id) {
         setCurrentId(subsidiary.id);
         navigate(`/management/subsidiaries/${subsidiary.id}/edit`);
@@ -47,14 +50,14 @@ export default function SubsidiaryForm() {
       }
     },
     onError: () => {
-      toast.current?.show({ severity: 'error', summary: 'Erro', detail: 'Não foi possível criar' });
+      toast.current?.show({ severity: 'error', summary: t("common:error"), detail: t("common:record_created_error") });
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: FormValues }) => subsidiaryService.update(id, payload),
     onSuccess: (subsidiary) => {
-      toast.current?.show({ severity: 'success', summary: 'Sucesso', detail: 'Registro atualizado' });
+      toast.current?.show({ severity: 'success', summary: t("common:success"), detail: t("common:record_updated_successfully") });
       if (subsidiary) {
         setValue('company_id', subsidiary.company_id);
         setValue('name', subsidiary.name);
@@ -63,7 +66,7 @@ export default function SubsidiaryForm() {
       }
     },
     onError: () => {
-      toast.current?.show({ severity: 'error', summary: 'Erro', detail: 'Não foi possível atualizar' });
+      toast.current?.show({ severity: 'error', summary: t("common:error"), detail: t("common:record_updated_error") });
     },
   });
 
@@ -90,15 +93,15 @@ export default function SubsidiaryForm() {
     <div>
       <Toast ref={toast} position="top-right" />
       <div className="mb-4">
-        <BreadCrumb model={[{ label: 'Management' }, { label: 'Subsidiaries', url: '/management/subsidiaries' }, { label: id ? 'Edit' : 'New' }]} />
+        <BreadCrumb model={[{ label: t("management:management") }, { label: t("subsidiaries:subsidiaries"), url: '/management/subsidiaries' }, { label: id ? t("common:edit_record") : t("common:new_record") }]} />
       </div>
 
-      <div className="card p-6 max-w-3xl">
-        <h3 className="text-lg font-medium mb-4">{id ? 'Editar Filial' : 'Nova Filial'}</h3>
+      <div className="max-w-3xl p-6 card">
+        <h3 className="mb-4 text-lg font-medium">{id ? t("common:edit_record") : t("common:new_record")}</h3>
         <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 gap-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-              <label className="block mb-1">Empresa</label>
+              <label className="block mb-1">{t("subsidiaries:company")}</label>
               <Controller
                 control={control}
                 name="company_id"
@@ -110,13 +113,13 @@ export default function SubsidiaryForm() {
             </div>
 
             <div>
-              <label className="block mb-1">CPF/CNPJ</label>
+              <label className="block mb-1">{t("subsidiaries:document")}</label>
               <InputText {...register('doc_number')} className="w-full" />
             </div>
           </div>
 
           <div>
-            <label className="block mb-1">Nome</label>
+            <label className="block mb-1">{t("subsidiaries:name")}</label>
             <InputText {...register('name')} className="w-full" />
             {errors.name && <small className="p-error">{errors.name.message}</small>}
           </div>

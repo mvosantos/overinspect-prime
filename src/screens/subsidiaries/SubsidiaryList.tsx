@@ -10,8 +10,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import subsidiaryService from '../../services/subsidiaryService';
 import type { Subsidiary, PaginatedResponse } from '../../models/subsidiary';
 import { usePermissions } from '../../contexts/PermissionContext';
+import { useTranslation } from 'react-i18next';
 
 export default function SubsidiaryList() {
+  const { t } = useTranslation(['subsidiaries', 'common']);
   const toast = useRef<Toast>(null);
   const [globalFilter, setGlobalFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -35,19 +37,19 @@ export default function SubsidiaryList() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => subsidiaryService.remove(id),
     onSuccess: () => {
-      toast.current?.show({ severity: 'success', summary: 'Sucesso', detail: 'Registro excluído' });
+      toast.current?.show({ severity: 'success', summary: t("common:success"), detail: t("common:record_deleted_successfully") });
       queryClient.invalidateQueries({ queryKey: ['subsidiaries'] });
       setSelectedDelete(null);
     },
     onError: () => {
-      toast.current?.show({ severity: 'error', summary: 'Erro', detail: 'Não foi possível excluir' });
+      toast.current?.show({ severity: 'error', summary: t("common:error"), detail: t("common:record_deleted_error") });
     },
   });
 
   const actionBody = (rowData: Subsidiary) => (
     <div className="flex gap-2">
       {canUpdate && (
-        <Button icon="pi pi-pencil" className="p-button-sm" onClick={() => window.open(`/management/subsidiaries/${rowData.id}/edit`, '_blank') } />
+        <Button icon="pi pi-pencil" className="p-button-sm" onClick={() => window.open(`/management/subsidiaries/${rowData.id}/edit`, '_blank')} />
       )}
       {canDelete && (
         <Button icon="pi pi-trash" className="p-button-sm p-button-danger" onClick={() => setSelectedDelete(rowData)} />
@@ -56,22 +58,22 @@ export default function SubsidiaryList() {
   );
 
   const header = (
-    <div className="flex justify-between items-center">
+    <div className="flex items-center justify-between">
       <div className="flex flex-col">
         <div className="mb-2">
-          <BreadCrumb model={[{ label: 'Management' }, { label: 'Subsidiaries', url: '/management/subsidiaries' }]} />
+          <BreadCrumb model={[{ label: t('management:management') }, { label: t('subsidiaries:subsidiaries'), url: '/management/subsidiaries' }]} />
         </div>
         <div className="p-input-icon-left">
           <i className="pi pi-search" />
           <InputText
             value={globalFilter}
             onChange={(e) => { setGlobalFilter((e.target as HTMLInputElement).value); setPage(1); }}
-            placeholder="Pesquisar geral..."
+            placeholder={t("common:general_search")}
           />
         </div>
       </div>
       <div className="flex flex-col items-end">
-        <div className="text-sm text-muted mb-1">Total: {data?.total ?? 0}</div>
+        <div className="mb-1 text-sm text-muted">{t("common:total")}: {data?.total ?? 0}</div>
         <div>
           {permissions.includes('admin.subsidiary.store') && (
             <Button label="Adicionar" icon="pi pi-plus" onClick={() => window.open('/subsidiaries/new/edit', '_blank')} />
@@ -104,22 +106,22 @@ export default function SubsidiaryList() {
             setPage(1);
           }}
         >
-          <Column field="company.name" header="Empresa" body={(row: Subsidiary) => row.company?.name} />
-          <Column field="name" header="Nome" sortable filter filterElement={
-            <InputText value={filters.name || ''} onChange={(e) => { setFilters(f => ({ ...f, name: (e.target as HTMLInputElement).value })); setPage(1); }} placeholder="Pesquisar Nome" />
+          <Column field="company.name" header={t("subsidiaries:company")} body={(row: Subsidiary) => row.company?.name} />
+          <Column field="name" header={t("subsidiaries:name")} sortable filter filterElement={
+            <InputText value={filters.name || ''} onChange={(e) => { setFilters(f => ({ ...f, name: (e.target as HTMLInputElement).value })); setPage(1); }} placeholder={t("common:search")} />
           } />
-          <Column field="doc_number" header="CPF/CNPJ" sortable filter filterElement={
-            <InputText value={filters.doc_number || ''} onChange={(e) => { setFilters(f => ({ ...f, doc_number: (e.target as HTMLInputElement).value })); setPage(1); }} placeholder="Pesquisar CPF/CNPJ" />
+          <Column field="doc_number" header={t("subsidiaries:document")} sortable filter filterElement={
+            <InputText value={filters.doc_number || ''} onChange={(e) => { setFilters(f => ({ ...f, doc_number: (e.target as HTMLInputElement).value })); setPage(1); }} placeholder={t("common:search")} />
           } />
-          <Column header="Ações" body={actionBody} style={{ width: '8rem' }} />
+          <Column header={t("common:actions")} body={actionBody} style={{ width: '8rem' }} />
         </DataTable>
       </div>
 
-      <Dialog header="Confirmar exclusão" visible={!!selectedDelete} onHide={() => setSelectedDelete(null)}>
-        <p>Deseja realmente excluir o registro?</p>
-        <div className="mt-4 flex gap-2 justify-end">
-          <Button label="Cancelar" onClick={() => setSelectedDelete(null)} />
-          <Button label="Sim, excluir" className="p-button-danger" onClick={() => selectedDelete && deleteMutation.mutate(selectedDelete.id)} />
+      <Dialog header={t("common:delete_record")} visible={!!selectedDelete} onHide={() => setSelectedDelete(null)}>
+         <p>{t("common:delete_record_confirmation")}</p>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button label={t("common:cancelUCase")} onClick={() => setSelectedDelete(null)} />
+          <Button label={t("common:delete_yesUCase")} className="p-button-danger" onClick={() => selectedDelete && deleteMutation.mutate(selectedDelete.id)} />
         </div>
       </Dialog>
     </div>

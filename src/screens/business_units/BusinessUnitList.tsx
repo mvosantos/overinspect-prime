@@ -60,7 +60,7 @@ export default function BusinessUnitList() {
           <InputText
             value={globalFilter}
             onChange={(e) => { setGlobalFilter((e.target as HTMLInputElement).value); setPage(1); }}
-            placeholder="Pesquisar geral..."
+            placeholder={t("common:general_search")}
           />
         </div>
       </div>

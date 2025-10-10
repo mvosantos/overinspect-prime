@@ -10,8 +10,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import companyService from '../../services/companyService';
 import type { Company } from '../../models/company';
 import type { ApiPaginatedResponse as PaginatedResponse } from '../../models/apiTypes';
+import { useTranslation } from 'react-i18next';
 
 export default function CompanyList() {
+  const { t } = useTranslation(['companies', 'common']);
   const toast = useRef<Toast>(null);
   const [globalFilter, setGlobalFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -30,12 +32,12 @@ export default function CompanyList() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => companyService.remove(id),
     onSuccess: () => {
-      toast.current?.show({ severity: 'success', summary: 'Sucesso', detail: 'Registro excluído' });
+      toast.current?.show({ severity: 'success', summary: t("common:success"), detail: t("common:record_deleted_successfully") });
       queryClient.invalidateQueries({ queryKey: ['companies'] });
       setSelectedDelete(null);
     },
     onError: () => {
-      toast.current?.show({ severity: 'error', summary: 'Erro', detail: 'Não foi possível excluir' });
+      toast.current?.show({ severity: 'error', summary: t("common:error"), detail: t("common:record_deleted_error") });
     },
   });
 
@@ -47,24 +49,24 @@ export default function CompanyList() {
   );
 
   const header = (
-    <div className="flex justify-between items-center">
+    <div className="flex items-center justify-between">
       <div className="flex flex-col">
         <div className="mb-2">
-          <BreadCrumb model={[{ label: 'Management' }, { label: 'Companies', url: '/management/companies' }]} />
+          <BreadCrumb model={[{ label: t('management:management') }, { label: t('companies:companies'), url: '/management/companies' }]} />
         </div>
         <div className="p-input-icon-left">
           <i className="pi pi-search" />
           <InputText
             value={globalFilter}
             onChange={(e) => { setGlobalFilter((e.target as HTMLInputElement).value); setPage(1); }}
-            placeholder="Pesquisar geral..."
+            placeholder={t("common:general_search")}
           />
         </div>
       </div>
       <div className="flex flex-col items-end">
-        <div className="text-sm text-muted mb-1">Total: {data?.total ?? 0}</div>
+        <div className="mb-1 text-sm text-muted">{t("common:total")}: {data?.total ?? 0}</div>
         <div>
-          <Button label="Adicionar" icon="pi pi-plus" onClick={() => window.open('/companies/new/edit', '_blank')} />
+          <Button label={t("common:new_record")} icon="pi pi-plus" onClick={() => window.open('/companies/new/edit', '_blank')} />
         </div>
       </div>
     </div>
@@ -92,18 +94,18 @@ export default function CompanyList() {
             setPage(1);
           }}
         >
-          <Column field="name" header="Nome" sortable />
-          <Column field="doc_number" header="CPF/CNPJ" sortable />
-          <Column field="url_address" header="Website" />
-          <Column header="Ações" body={actionBody} style={{ width: '8rem' }} />
+          <Column field="name" header={t("name")} sortable />
+          <Column field="doc_number" header={t("document")} sortable />
+          <Column field="url_address" header={t("url_address")} />
+          <Column header={t("common:actions")} body={actionBody} style={{ width: '8rem' }} />
         </DataTable>
       </div>
 
-      <Dialog header="Confirmar exclusão" visible={!!selectedDelete} onHide={() => setSelectedDelete(null)}>
-        <p>Deseja realmente excluir o registro?</p>
-        <div className="mt-4 flex gap-2 justify-end">
-          <Button label="Cancelar" onClick={() => setSelectedDelete(null)} />
-          <Button label="Sim, excluir" className="p-button-danger" onClick={() => selectedDelete && deleteMutation.mutate(selectedDelete.id)} />
+      <Dialog header={t("common:confirm_deletion")} visible={!!selectedDelete} onHide={() => setSelectedDelete(null)}>
+        <p>{t("common:delete_record_confirmation")}</p>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button label={t("common:cancelUCase")} onClick={() => setSelectedDelete(null)} />
+          <Button label={t("common:delete_yesUCase")} className="p-button-danger" onClick={() => selectedDelete && deleteMutation.mutate(selectedDelete.id)} />
         </div>
       </Dialog>
     </div>
