@@ -6,6 +6,7 @@ import { useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { normalizeListResponse } from '../../../utils/apiHelpers';
+import { makeAutoCompleteOnChange, resolveAutoCompleteValue } from '../../../utils/formHelpers';
 import { useWatch } from 'react-hook-form';
 import subsidiaryService from '../../../services/subsidiaryService';
 import type { Subsidiary } from '../../../models/subsidiary';
@@ -271,10 +272,19 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
   const showIfVisible = (name: string) => !!(metaFor(name) && metaFor(name)?.visible === true);
   const isRequired = (name: string) => !!(metaFor(name) && metaFor(name)?.required === true);
 
-  // Helper function to get value for AutoComplete
-  const getAutoCompleteValue = <T extends { id?: string }>(selectedData: T | undefined | null, suggestions: T[], cache: Record<string, T>, fieldValue: unknown) => {
-    return (selectedData as T | undefined) ?? suggestions.find((s) => s.id === fieldValue) ?? cache[String(fieldValue)] ?? (fieldValue as unknown as T | undefined);
+  // Helper: preserve precedence for an explicitly selected item, then delegate to shared resolver
+  const getAutoCompleteValue = <T extends { id?: string }>(selectedData: T | undefined | null, suggestions: T[], cache: Record<string, T> | undefined, fieldValue: unknown) => {
+    if (selectedData) return selectedData as T;
+    return resolveAutoCompleteValue<T>(suggestions, cache, fieldValue) as T | undefined;
   };
+
+  // Adapter to convert React setState setter into the SetCacheFn expected by makeAutoCompleteOnChange
+  const wrapSetCache = <T extends { id?: string }>(setter?: React.Dispatch<React.SetStateAction<Record<string, T>>> | undefined) =>
+    setter ? ((updater: (prev: Record<string, T>) => Record<string, T>) => setter((prev) => updater(prev))) : undefined;
+
+  // Factory to quickly create onChange handlers for AutoComplete fields using the shared helper
+  const makeOnChange = <T extends { id?: string }>(setter: React.Dispatch<React.SetStateAction<Record<string, T>>> | undefined, cacheKey: string, objectFieldKey?: string) =>
+    makeAutoCompleteOnChange<T>({ setCache: wrapSetCache(setter), cacheKey, qc, objectFieldKey, setFormValue: undefined });
 
   return (
     <Card>
@@ -341,16 +351,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                   suggestions={subsSuggestions}
                   field="name"
                   completeMethod={onSubsComplete}
-                  onChange={(e: { value: unknown }) => {
-                    const value = e.value;
-                    if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                      const id = (value as Record<string, unknown>).id as string;
-                      setSubsCache((prev) => ({ ...prev, [id]: value as Subsidiary }));
-                      field.onChange(id);
-                    } else {
-                      field.onChange(String(value ?? '') || null);
-                    }
-                  }}
+                  onChange={makeOnChange<Subsidiary>(setSubsCache, 'subsidiary')(field.onChange)}
                   dropdown
                   className="w-full"
                 />
@@ -375,16 +376,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                   completeMethod={onBusinessUnitComplete}
                   minLength={1}
                   delay={250}
-                  onChange={(e: { value: unknown }) => {
-                    const value = e.value;
-                    if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                      const id = (value as Record<string, unknown>).id as string;
-                      setBusinessUnitCache((prev) => ({ ...prev, [id]: value as BusinessUnit }));
-                      field.onChange(id);
-                    } else {
-                      field.onChange(String(value ?? '') || null);
-                    }
-                  }}
+                  onChange={makeOnChange<BusinessUnit>(setBusinessUnitCache, 'businessUnit')(field.onChange)}
                   dropdown
                   className="w-full"
                 />
@@ -409,16 +401,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                   suggestions={clientSuggestions}
                   field="name"
                   completeMethod={onClientComplete}
-                  onChange={(e: { value: unknown }) => {
-                    const value = e.value;
-                    if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                      const id = (value as Record<string, unknown>).id as string;
-                      setClientCache((prev) => ({ ...prev, [id]: value as Client }));
-                      field.onChange(id);
-                    } else {
-                      field.onChange(String(value ?? '') || null);
-                    }
-                  }}
+                  onChange={makeOnChange<Client>(setClientCache, 'client')(field.onChange)}
                   dropdown
                   className="w-full"
                 />
@@ -464,16 +447,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                   suggestions={currencySuggestions}
                   field="name"
                   completeMethod={onCurrencyComplete}
-                  onChange={(e: { value: unknown }) => {
-                    const value = e.value;
-                    if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                      const id = (value as Record<string, unknown>).id as string;
-                      setCurrencyCache((prev) => ({ ...prev, [id]: value as Currency }));
-                      field.onChange(id);
-                    } else {
-                      field.onChange(String(value ?? '') || null);
-                    }
-                  }}
+                  onChange={makeOnChange<Currency>(setCurrencyCache, 'currency')(field.onChange)}
                   dropdown
                   className="w-full"
                 />
@@ -636,16 +610,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                   suggestions={productSuggestions}
                   field="name"
                   completeMethod={onProductComplete}
-                  onChange={(e: { value: unknown }) => {
-                    const value = e.value;
-                    if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                      const id = (value as Record<string, unknown>).id as string;
-                      setProductCache((prev) => ({ ...prev, [id]: value as Product }));
-                      field.onChange(id);
-                    } else {
-                      field.onChange(String(value ?? '') || null);
-                    }
-                  }}
+                  onChange={makeOnChange<Product>(setProductCache, 'product')(field.onChange)}
                   dropdown
                   className="w-full"
                 />
@@ -692,16 +657,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                   suggestions={traderSuggestions}
                   field="name"
                   completeMethod={onTraderComplete}
-                  onChange={(e: { value: unknown }) => {
-                    const value = e.value;
-                    if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                      const id = (value as Record<string, unknown>).id as string;
-                      setTraderCache((prev) => ({ ...prev, [id]: value as Trader }));
-                      field.onChange(id);
-                    } else {
-                      field.onChange(String(value ?? '') || null);
-                    }
-                  }}
+                  onChange={makeOnChange<Trader>(setTraderCache, 'trader')(field.onChange)}
                   dropdown
                   className="w-full"
                 />
@@ -724,16 +680,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                   suggestions={exporterSuggestions}
                   field="name"
                   completeMethod={onExporterComplete}
-                  onChange={(e: { value: unknown }) => {
-                    const value = e.value;
-                    if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                      const id = (value as Record<string, unknown>).id as string;
-                      setExporterCache((prev) => ({ ...prev, [id]: value as Exporter }));
-                      field.onChange(id);
-                    } else {
-                      field.onChange(String(value ?? '') || null);
-                    }
-                  }}
+                  onChange={makeOnChange<Exporter>(setExporterCache, 'exporter')(field.onChange)}
                   dropdown
                   className="w-full"
                 />
@@ -756,16 +703,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                   suggestions={shipperSuggestions}
                   field="name"
                   completeMethod={onShipperComplete}
-                  onChange={(e: { value: unknown }) => {
-                    const value = e.value;
-                    if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                      const id = (value as Record<string, unknown>).id as string;
-                      setShipperCache((prev) => ({ ...prev, [id]: value as Shipper }));
-                      field.onChange(id);
-                    } else {
-                      field.onChange(String(value ?? '') || null);
-                    }
-                  }}
+                  onChange={makeOnChange<Shipper>(setShipperCache, 'shipper')(field.onChange)}
                   dropdown
                   className="w-full"
                 />
@@ -903,16 +841,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                   suggestions={regionSuggestions}
                   field="name"
                   completeMethod={onRegionComplete}
-                  onChange={(e: { value: unknown }) => {
-                    const value = e.value;
-                    if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                      const id = (value as Record<string, unknown>).id as string;
-                      setRegionCache((prev) => ({ ...prev, [id]: value as Region }));
-                      field.onChange(id);
-                    } else {
-                      field.onChange(String(value ?? '') || null);
-                    }
-                  }}
+                  onChange={makeOnChange<Region>(setRegionCache, 'region')(field.onChange)}
                   dropdown
                   className="w-full"
                 />
@@ -935,16 +864,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                   suggestions={citySuggestions}
                   field="name"
                   completeMethod={onCityComplete}
-                  onChange={(e: { value: unknown }) => {
-                    const value = e.value;
-                    if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                      const id = (value as Record<string, unknown>).id as string;
-                      setCityCache((prev) => ({ ...prev, [id]: value as City }));
-                      field.onChange(id);
-                    } else {
-                      field.onChange(String(value ?? '') || null);
-                    }
-                  }}
+                  onChange={makeOnChange<City>(setCityCache, 'city')(field.onChange)}
                   dropdown
                   className="w-full"
                 />
@@ -967,16 +887,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                   suggestions={operationTypeSuggestions}
                   field="name"
                   completeMethod={onOperationTypeComplete}
-                  onChange={(e: { value: unknown }) => {
-                    const value = e.value;
-                    if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                      const id = (value as Record<string, unknown>).id as string;
-                      setOperationTypeCache((prev) => ({ ...prev, [id]: value as OperationType }));
-                      field.onChange(id);
-                    } else {
-                      field.onChange(String(value ?? '') || null);
-                    }
-                  }}
+                  onChange={makeOnChange<OperationType>(setOperationTypeCache, 'operationType')(field.onChange)}
                   dropdown
                   className="w-full"
                 />
@@ -999,16 +910,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                   suggestions={cargoTypeSuggestions}
                   field="name"
                   completeMethod={onCargoTypeComplete}
-                  onChange={(e: { value: unknown }) => {
-                    const value = e.value;
-                    if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                      const id = (value as Record<string, unknown>).id as string;
-                      setCargoTypeCache((prev) => ({ ...prev, [id]: value as CargoType }));
-                      field.onChange(id);
-                    } else {
-                      field.onChange(String(value ?? '') || null);
-                    }
-                  }}
+                  onChange={makeOnChange<CargoType>(setCargoTypeCache, 'cargoType')(field.onChange)}
                   dropdown
                   className="w-full"
                 />
@@ -1031,16 +933,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                   suggestions={packingTypeSuggestions}
                   field="name"
                   completeMethod={onPackingTypeComplete}
-                  onChange={(e: { value: unknown }) => {
-                    const value = e.value;
-                    if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                      const id = (value as Record<string, unknown>).id as string;
-                      setPackingTypeCache((prev) => ({ ...prev, [id]: value as PackingType }));
-                      field.onChange(id);
-                    } else {
-                      field.onChange(String(value ?? '') || null);
-                    }
-                  }}
+                  onChange={makeOnChange<PackingType>(setPackingTypeCache, 'packingType')(field.onChange)}
                   dropdown
                   className="w-full"
                 />

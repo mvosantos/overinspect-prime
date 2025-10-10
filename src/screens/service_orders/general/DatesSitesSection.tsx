@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import siteService from '../../../services/siteService';
 import { normalizeListResponse } from '../../../utils/apiHelpers';
+import { makeAutoCompleteOnChange, resolveAutoCompleteValue } from '../../../utils/formHelpers';
 import type { Site } from '../../../models/Site';
 import { Controller } from 'react-hook-form';
 import type { Control, UseFormGetValues, UseFormSetValue } from 'react-hook-form';
@@ -56,21 +57,9 @@ export default function DatesSitesSection({
   const [stuffingSiteSuggestions, setStuffingSiteSuggestions] = useState<Site[]>([]);
   const [departureSiteSuggestions, setDepartureSiteSuggestions] = useState<Site[]>([]);
 
-  // Resolve field value (id or object) into an object so AutoComplete displays the 'name'
-  const getAutoCompleteValue = (suggestions: Site[], fieldValue: unknown) => {
-    // If already an object, return it
-    if (fieldValue && typeof fieldValue === 'object') return fieldValue as Site;
-    const id = String(fieldValue ?? '');
-    if (!id) return fieldValue;
-    // Try suggestions first
-    const found = suggestions.find((s) => s.id === id);
-    if (found) return found;
-    // Try react-query cache
-    const cached = qc.getQueryData(['site', id]) as Site | undefined;
-    if (cached) return cached;
-    // fallback to raw value (will display id)
-    return fieldValue;
-  };
+  // helpers using shared utilities
+  const getAutoCompleteValue = (suggestions: Site[], fieldValue: unknown) => resolveAutoCompleteValue<Site>(suggestions, undefined, fieldValue);
+  const makeOnChange = (fieldKey: string) => makeAutoCompleteOnChange<Site>({ objectFieldKey: fieldKey, setFormValue: setValue, cacheKey: 'site', qc });
 
 
   const createSiteCompleteHandler = (setSuggestions: (s: Site[]) => void) => async (event: { query: string }) => {
@@ -211,18 +200,7 @@ export default function DatesSitesSection({
                     suggestions={firstSiteSuggestions}
                     field="name"
                     completeMethod={onFirstSiteComplete}
-                    onChange={(e: { value: unknown }) => {
-                      const value = e.value;
-                      if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                        const id = (value as Record<string, unknown>).id as string;
-                        field.onChange(id);
-                        setValue('first_site', value as Site);
-                        qc.setQueryData(['site', id], value as Site);
-                      } else {
-                        field.onChange(String(value ?? '') || null);
-                        setValue('first_site', undefined);
-                      }
-                    }}
+                    onChange={makeOnChange('first_site')(field.onChange)}
                     dropdown
                     className="w-full"
                   />
@@ -246,18 +224,7 @@ export default function DatesSitesSection({
                     suggestions={secondSiteSuggestions}
                     field="name"
                     completeMethod={onSecondSiteComplete}
-                    onChange={(e: { value: unknown }) => {
-                      const value = e.value;
-                      if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                        const id = (value as Record<string, unknown>).id as string;
-                        field.onChange(id);
-                        setValue('second_site', value as Site);
-                        qc.setQueryData(['site', id], value as Site);
-                      } else {
-                        field.onChange(String(value ?? '') || null);
-                        setValue('second_site', undefined);
-                      }
-                    }}
+                    onChange={makeOnChange('second_site')(field.onChange)}
                     dropdown
                     className="w-full"
                   />
@@ -281,18 +248,7 @@ export default function DatesSitesSection({
                     suggestions={thirdSiteSuggestions}
                     field="name"
                     completeMethod={onThirdSiteComplete}
-                    onChange={(e: { value: unknown }) => {
-                      const value = e.value;
-                      if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                        const id = (value as Record<string, unknown>).id as string;
-                        field.onChange(id);
-                        setValue('third_site', value as Site);
-                        qc.setQueryData(['site', id], value as Site);
-                      } else {
-                        field.onChange(String(value ?? '') || null);
-                        setValue('third_site', undefined);
-                      }
-                    }}
+                    onChange={makeOnChange('third_site')(field.onChange)}
                     dropdown
                     className="w-full"
                   />
@@ -316,18 +272,7 @@ export default function DatesSitesSection({
                     suggestions={stuffingSiteSuggestions}
                     field="name"
                     completeMethod={onStuffingSiteComplete}
-                    onChange={(e: { value: unknown }) => {
-                      const value = e.value;
-                      if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                        const id = (value as Record<string, unknown>).id as string;
-                        field.onChange(id);
-                        setValue('stuffing_site', value as Site);
-                        qc.setQueryData(['site', id], value as Site);
-                      } else {
-                        field.onChange(String(value ?? '') || null);
-                        setValue('stuffing_site', undefined);
-                      }
-                    }}
+                    onChange={makeOnChange('stuffing_site')(field.onChange)}
                     dropdown
                     className="w-full"
                   />
@@ -351,18 +296,7 @@ export default function DatesSitesSection({
                     suggestions={departureSiteSuggestions}
                     field="name"
                     completeMethod={onDepartureSiteComplete}
-                    onChange={(e: { value: unknown }) => {
-                      const value = e.value;
-                      if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                        const id = (value as Record<string, unknown>).id as string;
-                        field.onChange(id);
-                        setValue('departure_site', value as Site);
-                        qc.setQueryData(['site', id], value as Site);
-                      } else {
-                        field.onChange(String(value ?? '') || null);
-                        setValue('departure_site', undefined);
-                      }
-                    }}
+                    onChange={makeOnChange('departure_site')(field.onChange)}
                     dropdown
                     className="w-full"
                   />
