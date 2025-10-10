@@ -18,8 +18,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { buildZodSchemaFromFields } from '../../utils/dynamicSchema';
 import z from 'zod';
 import type { ZodTypeAny } from 'zod';
+import { useTranslation } from 'react-i18next';
 
 export default function NewServiceOrder() {
+  const { t }= useTranslation('new_service_order');
   const toast = useRef<Toast | null>(null);
   const queryClient = useQueryClient();
 
@@ -150,15 +152,15 @@ export default function NewServiceOrder() {
     <div>
       <Toast ref={toast} position="top-right" />
       <div className="mb-4">
-        <BreadCrumb model={[{ label: 'Service Orders' }, { label: currentOrderId ? `ORDEM DE SERVIÇO ${currentOrderId}` : 'NOVA ORDEM DE SERVIÇO' }]} />
+        <BreadCrumb model={[{ label: 'Service Orders' }, { label: currentOrderId ? `${t('service_orders:service_order')} ${currentOrderId}` : t('records:new_service_order') }]} />
       </div>
 
       <div className="card">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl">{currentOrderId ? `ORDEM DE SERVIÇO ${currentOrderId}` : 'NOVA ORDEM DE SERVIÇO'}</h1>
+          <h1 className="text-2xl">{currentOrderId ? `${t('service_orders:service_order')} ${currentOrderId}` : t('records:new_service_order')}</h1>
           <div className="flex gap-2">
-            <Dropdown value={selectedServiceTypeId} options={serviceTypes.map(t => ({ label: t.name, value: t.id }))} onChange={(e) => setSelectedServiceTypeId(e.value ?? null)} placeholder="Selecione o tipo de serviço" />
-            <Button label="Salvar" onClick={onSubmit} />
+            <Dropdown value={selectedServiceTypeId} options={serviceTypes.map(t => ({ label: t.name, value: t.id }))} onChange={(e) => setSelectedServiceTypeId(e.value ?? null)} placeholder={t('service_orders:select_service_type')} />
+            <Button label={t('common:save')} onClick={onSubmit} />
           </div>
         </div>
 

@@ -10,6 +10,10 @@ import type { Subsidiary } from '../../../models/subsidiary';
 // prime components kept minimal for now
 import { Controller } from 'react-hook-form';
 import type { UseFormRegister, FieldErrors, Control } from 'react-hook-form';
+import { Calendar } from 'primereact/calendar';
+import { useTranslation } from 'react-i18next';
+import type { BusinessUnit } from '../../../models/businessUnit';
+import businessUnitService from '../../../services/businessUnitService';
 
 type FieldMeta = {
   name: string;
@@ -26,16 +30,20 @@ type Props = {
   register?: UseFormRegister<Record<string, unknown>>;
   control?: Control<Record<string, unknown>>;
   errors?: FieldErrors<Record<string, unknown>>;
-  setValue?: (name: string, value: unknown) => void;
 };
 
-export default function GeneralDataSection({ serviceTypeId, fields = [], register, control, errors = {}, setValue }: Props) {
+export default function GeneralDataSection({ serviceTypeId, fields = [], register, control, errors = {} }: Props) {
+  const { t } = useTranslation('new_service_order');
   const [subsSuggestions, setSubsSuggestions] = useState<Subsidiary[]>([]);
+  const [businessUnitSuggestions, setBusinessUnitSuggestions] = useState<BusinessUnit[]>([]);
   const [subsCache, setSubsCache] = useState<Record<string, Subsidiary>>({});
+  const [businessUnitCache, setBusinessUnitCache] = useState<Record<string, BusinessUnit>>({});
   const qc = useQueryClient();
   // form control is expected to be provided by the parent form (we rely on that convention)
   const watchedSubsId = useWatch({ control, name: 'subsidiary_id' }) as string | undefined;
+  const watchedBUsId = useWatch({ control, name: 'business_unit_id' }) as string | undefined;
   const { data: selectedSubs } = useQuery({ queryKey: ['subsidiary', watchedSubsId], queryFn: () => subsidiaryService.get(watchedSubsId as string), enabled: !!watchedSubsId, staleTime: 1000 * 60 * 5 });
+  const { data: selectedBusinessUnit } = useQuery({ queryKey: ['businessUnit', watchedBUsId], queryFn: () => businessUnitService.get(watchedBUsId as string), enabled: !!watchedBUsId, staleTime: 1000 * 60 * 5 });
 
   useEffect(() => {
     // initial small fetch to populate autocomplete
@@ -63,15 +71,30 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
   const onSubsComplete = async (event: { query: string }) => {
     const q = event.query;
     try {
-  const res = await subsidiaryService.list({ per_page: 20, filters: { name: q } });
-  const maybe = res as unknown;
-  const items = maybe && typeof maybe === 'object' && 'data' in (maybe as Record<string, unknown>) ? (maybe as { data: Subsidiary[] }).data : [];
-  setSubsSuggestions(items ?? []);
-  const map: Record<string, Subsidiary> = {};
-  (items ?? []).forEach((it) => { if (it?.id) { map[it.id] = it; qc.setQueryData(['subsidiary', it.id], it); } });
-  setSubsCache((prev) => ({ ...prev, ...map }));
+      const res = await subsidiaryService.list({ per_page: 20, filters: { name: q } });
+      const maybe = res as unknown;
+      const items = maybe && typeof maybe === 'object' && 'data' in (maybe as Record<string, unknown>) ? (maybe as { data: Subsidiary[] }).data : [];
+      setSubsSuggestions(items ?? []);
+      const map: Record<string, Subsidiary> = {};
+      (items ?? []).forEach((it) => { if (it?.id) { map[it.id] = it; qc.setQueryData(['subsidiary', it.id], it); } });
+      setSubsCache((prev) => ({ ...prev, ...map }));
     } catch {
       setSubsSuggestions([]);
+    }
+  };
+
+  const onBusinessUnitComplete = async (event: { query: string }) => {
+    const q = event.query;
+    try {
+      const res = await businessUnitService.list({ per_page: 20, filters: { name: q } });
+      const maybe = res as unknown;
+      const items = maybe && typeof maybe === 'object' && 'data' in (maybe as Record<string, unknown>) ? (maybe as { data: BusinessUnit[] }).data : [];
+      setBusinessUnitSuggestions(items ?? []);
+      const map: Record<string, BusinessUnit> = {};
+      (items ?? []).forEach((it) => { if (it?.id) { map[it.id] = it; qc.setQueryData(['businessUnit', it.id], it); } });
+      setBusinessUnitCache((prev) => ({ ...prev, ...map }));
+    } catch {
+      setBusinessUnitSuggestions([]);
     }
   };
 
@@ -88,231 +111,263 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
         </div>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
-          {/* ID */}
-          {showIfVisible('id') && (
-            <div>
-              <label className="block mb-1">ID {isRequired('id') ? '*' : ''}</label>
-              {control ? (
-                <Controller
-                  control={control}
-                  name="id"
-                  render={({ field }) => (
-                    <InputText
-                      className="w-full"
-                      disabled
-                      value={(field.value as unknown as string) ?? ''}
-                      onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
-                    />
-                  )}
-                />
-              ) : (
-                <InputText className="w-full" disabled {...(register ? register('id') : {})} />
-              )}
-              {errors && errors['id'] && <small className="p-error">{getErrorMessage(errors, 'id')}</small>}
-            </div>
-          )}
+        {/* ID */}
+        {showIfVisible('id') && (
+          <div>
+            <label className="block mb-1">ID {isRequired('id') ? '*' : ''}</label>
+            {control ? (
+              <Controller
+                control={control}
+                name="id"
+                render={({ field }) => (
+                  <InputText
+                    className="w-full"
+                    disabled
+                    value={(field.value as unknown as string) ?? ''}
+                    onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
+                  />
+                )}
+              />
+            ) : (
+              <InputText className="w-full" disabled {...(register ? register('id') : {})} />
+            )}
+            {errors && errors['id'] && <small className="p-error">{getErrorMessage(errors, 'id')}</small>}
+          </div>
+        )}
 
-          {/* Subsidiary ID (Autocomplete) */}
-          {showIfVisible('subsidiary_id') && (
-            <div>
-              <label className="block mb-1">Subsidiária {isRequired('subsidiary_id') ? '*' : ''}</label>
-              {control ? (
-                <Controller
-                  control={control}
-                  name="subsidiary_id"
-                  render={({ field }) => (
-                    <AutoComplete
-                      value={
-                        // prefer query result (fresh), then suggestions, then local cache
-                        (selectedSubs as Subsidiary) ?? (subsSuggestions.find((s) => s.id === (field.value as unknown as string)) as Subsidiary)
-                        ?? (subsCache[(field.value as unknown as string)] as Subsidiary)
-                        ?? (field.value as unknown as Subsidiary)
-                      }
-                      suggestions={subsSuggestions}
-                      field="name"
-                      completeMethod={onSubsComplete}
-                      onChange={(e: { value: unknown }) => {
-                        const value = e.value;
-                        // if the backend returns an object, we expect it has id
-                        if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                          const id = (value as Record<string, unknown>).id as string;
-                          // cache the selected object
-                          setSubsCache((prev) => ({ ...prev, [id]: value as Subsidiary }));
-                          field.onChange(id);
-                        } else {
-                          field.onChange(String(value ?? '') || null);
-                        }
-                      }}
-                      dropdown
-                      className="w-full"
-                    />
-                  )}
+
+        {/* Nomination date */}
+        {showIfVisible('nomination_date') && (
+          <div>
+            <label className="block mb-1">{t("new_service_order:nomination_date")}</label>
+            <Controller
+              control={control}
+              name="nomination_date"
+              render={({ field }) => (
+                <Calendar
+                  className="w-full"
+                  value={field.value as Date | undefined}
+                  onChange={((e: any) => field.onChange((e as any)?.value ?? null)) as any} // eslint-disable-line @typescript-eslint/no-explicit-any
                 />
-              ) : (
+              )}
+            />
+          </div>
+        )}
+
+        {/* Subsidiary ID (Autocomplete) */}
+        {showIfVisible('subsidiary_id') && (
+          <div>
+            <label className="block mb-1">Subsidiária {isRequired('subsidiary_id') ? '*' : ''}</label>
+            <Controller
+              control={control}
+              name="subsidiary_id"
+              render={({ field }) => (
                 <AutoComplete
-                  value={undefined}
+                  value={
+                    // prefer query result (fresh), then suggestions, then local cache
+                    (selectedSubs as Subsidiary) ?? (subsSuggestions.find((s) => s.id === (field.value as unknown as string)) as Subsidiary)
+                    ?? (subsCache[(field.value as unknown as string)] as Subsidiary)
+                    ?? (field.value as unknown as Subsidiary)
+                  }
                   suggestions={subsSuggestions}
                   field="name"
                   completeMethod={onSubsComplete}
                   onChange={(e: { value: unknown }) => {
                     const value = e.value;
-                    if (setValue) {
-                      if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
-                        setValue('subsidiary_id', (value as Record<string, unknown>).id as string);
-                      } else {
-                        setValue('subsidiary_id', String(value ?? '') || null);
-                      }
+                    // if the backend returns an object, we expect it has id
+                    if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
+                      const id = (value as Record<string, unknown>).id as string;
+                      // cache the selected object
+                      setSubsCache((prev) => ({ ...prev, [id]: value as Subsidiary }));
+                      field.onChange(id);
+                    } else {
+                      field.onChange(String(value ?? '') || null);
                     }
                   }}
                   dropdown
                   className="w-full"
                 />
               )}
-              {errors && errors['subsidiary_id'] && <small className="p-error">{getErrorMessage(errors, 'subsidiary_id')}</small>}
-            </div>
-          )}
+            />
+            {errors && errors['subsidiary_id'] && <small className="p-error">{getErrorMessage(errors, 'subsidiary_id')}</small>}
+          </div>
+        )}
 
-          {/* Business Unit ID */}
-          {showIfVisible('business_unit_id') && (
-            <div>
-              <label className="block mb-1">Business Unit {isRequired('business_unit_id') ? '*' : ''}</label>
-              {control ? (
-                <Controller
-                  control={control}
-                  name="business_unit_id"
-                  render={({ field }) => (
-                    <InputText
-                      className="w-full"
-                      value={(field.value as unknown as string) ?? ''}
-                      onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
-                    />
-                  )}
+        {/* Business Unit ID */}
+        {showIfVisible('business_unit_id') && (
+          <div>
+            <label className="block mb-1">{t("new_service_order:business_unit")} {isRequired('business_unit_id') ? '*' : ''}</label>
+            <Controller
+              control={control}
+              name="business_unit_id"
+              render={({ field }) => (
+                <AutoComplete
+                  value={
+                    // prefer query result (fresh), then suggestions, then local cache
+                    (selectedBusinessUnit as BusinessUnit) ?? (businessUnitSuggestions.find((s) => s.id === (field.value as unknown as string)) as BusinessUnit)
+                    ?? (businessUnitCache[(field.value as unknown as string)] as BusinessUnit)
+                    ?? (field.value as unknown as BusinessUnit)
+                  }
+                  suggestions={businessUnitSuggestions}
+                  field="name"
+                  completeMethod={onBusinessUnitComplete}
+                  onChange={(e: { value: unknown }) => {
+                    const value = e.value;
+                    // if the backend returns an object, we expect it has id
+                    if (value && typeof value === 'object' && 'id' in (value as Record<string, unknown>)) {
+                      const id = (value as Record<string, unknown>).id as string;
+                      // cache the selected object in businessUnitCache
+                      setBusinessUnitCache((prev) => ({ ...prev, [id]: value as BusinessUnit }));
+                      field.onChange(id);
+                    } else {
+                      field.onChange(String(value ?? '') || null);
+                    }
+                  }}
+                  dropdown
+                  className="w-full"
                 />
-              ) : (
-                <InputText className="w-full" {...(register ? register('business_unit_id') : {})} />
               )}
-              {errors && errors['business_unit_id'] && <small className="p-error">{getErrorMessage(errors, 'business_unit_id')}</small>}
-            </div>
-          )}
+            />
+            {errors && errors['business_unit_id'] && <small className="p-error">{getErrorMessage(errors, 'business_unit_id')}</small>}
+          </div>
+        )}
 
-          {/* Service Type ID */}
-          {showIfVisible('service_type_id') && (
-            <div>
-              <label className="block mb-1">Service Type {isRequired('service_type_id') ? '*' : ''}</label>
-              {control ? (
-                <Controller
-                  control={control}
-                  name="service_type_id"
-                  render={({ field }) => (
-                    <InputText
-                      className="w-full"
-                      value={(field.value as unknown as string) ?? ''}
-                      onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
-                    />
-                  )}
+        {/* Order Identifier */}
+        {showIfVisible('order_identifier') && (
+          <div>
+            <label className="block mb-1">Order Identifier {isRequired('order_identifier') ? '*' : ''}</label>
+            <Controller
+              control={control}
+              name="order_identifier"
+              render={({ field }) => (
+                <InputText
+                  className="w-full"
+                  value={(field.value as unknown as string) ?? ''}
+                  onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
                 />
-              ) : (
-                <InputText className="w-full" {...(register ? register('service_type_id') : {})} />
               )}
-              {errors && errors['service_type_id'] && <small className="p-error">{getErrorMessage(errors, 'service_type_id')}</small>}
-            </div>
-          )}
+            />
+          </div>
+        )}
 
-          {/* Product ID */}
-          {showIfVisible('product_id') && (
-            <div>
-              <label className="block mb-1">Product {isRequired('product_id') ? '*' : ''}</label>
-              {control ? (
-                <Controller
-                  control={control}
-                  name="product_id"
-                  render={({ field }) => (
-                    <InputText
-                      className="w-full"
-                      value={(field.value as unknown as string) ?? ''}
-                      onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
-                    />
-                  )}
-                />
-              ) : (
-                <InputText className="w-full" {...(register ? register('product_id') : {})} />
-              )}
-              {errors && errors['product_id'] && <small className="p-error">{getErrorMessage(errors, 'product_id')}</small>}
-            </div>
-          )}
+        {/* Service Type ID */}
+        {showIfVisible('service_type_id') && (
+          <div>
+            <label className="block mb-1">Service Type {isRequired('service_type_id') ? '*' : ''}</label>
+            {control ? (
+              <Controller
+                control={control}
+                name="service_type_id"
+                render={({ field }) => (
+                  <InputText
+                    className="w-full"
+                    value={(field.value as unknown as string) ?? ''}
+                    onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
+                  />
+                )}
+              />
+            ) : (
+              <InputText className="w-full" {...(register ? register('service_type_id') : {})} />
+            )}
+            {errors && errors['service_type_id'] && <small className="p-error">{getErrorMessage(errors, 'service_type_id')}</small>}
+          </div>
+        )}
 
-          {/* Num Containers (InputNumber) */}
-          {showIfVisible('num_containers') && (
-            <div>
-              <label className="block mb-1">Containers {isRequired('num_containers') ? '*' : ''}</label>
-              {control ? (
-                <Controller
-                  control={control}
-                  name="num_containers"
-                  render={({ field }) => (
-                    <InputNumber
-                      className={`w-full ${((field.value as number) ?? 0) > 0 ? 'bg-yellow-50' : ''}`}
-                      value={field.value as number | undefined}
-                      onValueChange={(e) => field.onChange(e.value as number)}
-                      showButtons
-                      mode="decimal"
-                      min={0}
-                    />
-                  )}
-                />
-              ) : null}
-              {errors && errors['num_containers'] && <small className="p-error">{getErrorMessage(errors, 'num_containers')}</small>}
-            </div>
-          )}
+        {/* Product ID */}
+        {showIfVisible('product_id') && (
+          <div>
+            <label className="block mb-1">Product {isRequired('product_id') ? '*' : ''}</label>
+            {control ? (
+              <Controller
+                control={control}
+                name="product_id"
+                render={({ field }) => (
+                  <InputText
+                    className="w-full"
+                    value={(field.value as unknown as string) ?? ''}
+                    onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
+                  />
+                )}
+              />
+            ) : (
+              <InputText className="w-full" {...(register ? register('product_id') : {})} />
+            )}
+            {errors && errors['product_id'] && <small className="p-error">{getErrorMessage(errors, 'product_id')}</small>}
+          </div>
+        )}
 
-          {/* Exporter ID */}
-          {showIfVisible('exporter_id') && (
-            <div>
-              <label className="block mb-1">Exporter {isRequired('exporter_id') ? '*' : ''}</label>
-              {control ? (
-                <Controller
-                  control={control}
-                  name="exporter_id"
-                  render={({ field }) => (
-                    <InputText
-                      className="w-full"
-                      value={(field.value as unknown as string) ?? ''}
-                      onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
-                    />
-                  )}
-                />
-              ) : (
-                <InputText className="w-full" {...(register ? register('exporter_id') : {})} />
-              )}
-              {errors && errors['exporter_id'] && <small className="p-error">{getErrorMessage(errors, 'exporter_id')}</small>}
-            </div>
-          )}
+        {/* Num Containers (InputNumber) */}
+        {showIfVisible('num_containers') && (
+          <div>
+            <label className="block mb-1">Containers {isRequired('num_containers') ? '*' : ''}</label>
+            {control ? (
+              <Controller
+                control={control}
+                name="num_containers"
+                render={({ field }) => (
+                  <InputNumber
+                    className={`w-full ${((field.value as number) ?? 0) > 0 ? 'bg-yellow-50' : ''}`}
+                    value={field.value as number | undefined}
+                    onValueChange={(e) => field.onChange(e.value as number)}
+                    showButtons
+                    mode="decimal"
+                    min={0}
+                  />
+                )}
+              />
+            ) : null}
+            {errors && errors['num_containers'] && <small className="p-error">{getErrorMessage(errors, 'num_containers')}</small>}
+          </div>
+        )}
 
-          {/* Vessel Name */}
-          {showIfVisible('vessel_name') && (
-            <div>
-              <label className="block mb-1">Vessel Name {isRequired('vessel_name') ? '*' : ''}</label>
-              {control ? (
-                <Controller
-                  control={control}
-                  name="vessel_name"
-                  render={({ field }) => (
-                    <InputText
-                      className="w-full"
-                      value={(field.value as unknown as string) ?? ''}
-                      onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
-                    />
-                  )}
-                />
-              ) : (
-                <InputText className="w-full" {...(register ? register('vessel_name') : {})} />
-              )}
-              {errors && errors['vessel_name'] && <small className="p-error">{getErrorMessage(errors, 'vessel_name')}</small>}
-            </div>
-          )}
-        </div>
+        {/* Exporter ID */}
+        {showIfVisible('exporter_id') && (
+          <div>
+            <label className="block mb-1">Exporter {isRequired('exporter_id') ? '*' : ''}</label>
+            {control ? (
+              <Controller
+                control={control}
+                name="exporter_id"
+                render={({ field }) => (
+                  <InputText
+                    className="w-full"
+                    value={(field.value as unknown as string) ?? ''}
+                    onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
+                  />
+                )}
+              />
+            ) : (
+              <InputText className="w-full" {...(register ? register('exporter_id') : {})} />
+            )}
+            {errors && errors['exporter_id'] && <small className="p-error">{getErrorMessage(errors, 'exporter_id')}</small>}
+          </div>
+        )}
 
-        <div className="mt-4 text-sm text-muted">Tipo de serviço: {serviceTypeId ?? '—'}</div>
+        {/* Vessel Name */}
+        {showIfVisible('vessel_name') && (
+          <div>
+            <label className="block mb-1">Vessel Name {isRequired('vessel_name') ? '*' : ''}</label>
+            {control ? (
+              <Controller
+                control={control}
+                name="vessel_name"
+                render={({ field }) => (
+                  <InputText
+                    className="w-full"
+                    value={(field.value as unknown as string) ?? ''}
+                    onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
+                  />
+                )}
+              />
+            ) : (
+              <InputText className="w-full" {...(register ? register('vessel_name') : {})} />
+            )}
+            {errors && errors['vessel_name'] && <small className="p-error">{getErrorMessage(errors, 'vessel_name')}</small>}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 text-sm text-muted">Tipo de serviço: {serviceTypeId ?? '—'}</div>
     </Card>
   );
 }
