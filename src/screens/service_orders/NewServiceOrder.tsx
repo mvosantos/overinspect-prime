@@ -167,7 +167,8 @@ export default function NewServiceOrder() {
             <FormProvider {...methods}>
               <div className="grid grid-cols-1 gap-4">
                 <GeneralDataSection serviceTypeId={selectedServiceTypeId} fields={serviceTypeFields} register={register} control={control} errors={formState.errors} setValue={setValue} />
-                <ServicesSection serviceTypeId={selectedServiceTypeId} />
+                { /*<ServicesSection serviceTypeId={selectedServiceTypeId} /> */}
+                <ServicesSection />
                 <DatesSitesSection control={control} />
                 <WeighingSection control={control} />
                 <AttachmentsSection parentType="service_order" parentId={currentOrderId} />
