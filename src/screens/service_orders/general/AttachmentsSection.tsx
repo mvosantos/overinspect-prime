@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Card } from 'primereact/card';
 import { FileUpload } from 'primereact/fileupload';
 import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import { useEffect, useRef, useState } from 'react';
+import { useFormContext, useWatch } from 'react-hook-form';
 import serviceOrderService from '../../../services/serviceOrderService';
 import type { FileUploadHandlerEvent } from 'primereact/fileupload';
 
@@ -13,12 +15,16 @@ type Attachment = {
   created_at?: string;
 };
 
-type Props = { parentType?: 'service_order' | 'service_operation'; parentId?: string | null };
+type Props = { parentType?: 'service_order' | 'service_operation'; parentId?: string | null; control?: any; setValue?: any; getValues?: any; selectedServiceTypeId?: string | null };
 
-export default function AttachmentsSection({ parentType = 'service_order', parentId }: Props) {
+export default function AttachmentsSection({ parentType = 'service_order', parentId, control: pControl, selectedServiceTypeId }: Props) {
   const toast = useRef<Toast | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(false);
+  const ctx = useFormContext<Record<string, unknown>>();
+  const control = pControl ?? ctx.control;
+  const watchedServiceTypeId = useWatch({ control, name: 'service_type_id' }) as string | undefined;
+  const serviceTypeId = selectedServiceTypeId ?? watchedServiceTypeId;
 
   const fetchAttachments = async () => {
     if (!parentId) return;
@@ -99,7 +105,11 @@ export default function AttachmentsSection({ parentType = 'service_order', paren
       </div>
 
 
-      <FileUpload name="attachments" customUpload uploadHandler={customUpload} multiple accept="*" auto={false} />
+      {serviceTypeId ? (
+        <FileUpload name="attachments" customUpload uploadHandler={customUpload} multiple accept="*" auto={false} />
+      ) : (
+        <div className="text-sm text-muted">Escolha o tipo de serviço para habilitar o upload de anexos.</div>
+      )}
 
       <div className="mt-4">
         <h4 className="mb-2 text-sm font-semibold">Arquivos</h4>

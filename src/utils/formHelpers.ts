@@ -7,13 +7,28 @@ export function resolveAutoCompleteValue<T extends { id?: string }>(
   suggestions: T[],
   cache: Record<string, T> | undefined,
   fieldValue: unknown,
+  qc?: QueryClient | undefined,
+  cacheKey?: string | undefined,
 ): T | unknown {
+  // If field already stores the full object, just return it
   if (fieldValue && typeof fieldValue === 'object') return fieldValue as T;
   const id = String(fieldValue ?? '');
   if (!id) return fieldValue;
+  // Try suggestions first (fresh search results)
   const found = suggestions.find((s) => s.id === id);
   if (found) return found;
+  // Then try local component cache
   if (cache && id in cache) return cache[id];
+  // Finally, if a react-query client and cacheKey were provided, try reading cached full object
+  try {
+    if (qc && cacheKey) {
+      const qd = qc.getQueryData([cacheKey, id]) as T | undefined;
+      if (qd && typeof qd === 'object') return qd;
+    }
+  } catch {
+    // ignore failures reading from query cache
+  }
+  // fallback to raw value
   return fieldValue;
 }
 

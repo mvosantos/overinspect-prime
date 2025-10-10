@@ -21,13 +21,18 @@ export function buildZodSchemaFromFields(fields: ServiceTypeFieldRaw[]): { schem
 
     let schema: z.ZodTypeAny;
 
-    if (typeHint.includes('int') || typeHint === 'number' || typeHint.includes('float') || typeHint.includes('decimal')) {
+    // choose base zod type based on hint and whether field is required
+    const isNumeric = typeHint.includes('int') || typeHint === 'number' || typeHint.includes('float') || typeHint.includes('decimal');
+    const isBool = typeHint.includes('bool');
+    const isDate = typeHint.includes('date') || typeHint.includes('time');
+
+    if (isNumeric) {
       schema = z.preprocess((v) => {
         if (v === '' || v == null) return undefined;
         const parsed = typeof v === 'number' ? v : Number(String(v));
         return Number.isNaN(parsed) ? undefined : parsed;
-      }, z.number().optional());
-    } else if (typeHint.includes('bool')) {
+      }, f.required ? z.number() : z.number().optional());
+    } else if (isBool) {
       schema = z.preprocess((v) => {
         if (v === '' || v == null) return undefined;
         if (typeof v === 'boolean') return v;
@@ -35,24 +40,20 @@ export function buildZodSchemaFromFields(fields: ServiceTypeFieldRaw[]): { schem
         if (s === 'true' || s === '1') return true;
         if (s === 'false' || s === '0') return false;
         return Boolean(v);
-      }, z.boolean().optional());
-    } else if (typeHint.includes('date') || typeHint.includes('time')) {
+      }, f.required ? z.boolean() : z.boolean().optional());
+    } else if (isDate) {
       schema = z.preprocess((v) => {
         if (!v) return undefined;
         const d = v instanceof Date ? v : new Date(String(v));
         return Number.isNaN(d.getTime()) ? undefined : d;
-      }, z.date().optional());
+      }, f.required ? z.date() : z.date().optional());
     } else {
-      schema = z.string().optional();
+      schema = f.required ? z.string().min(1, `${f.label ?? key} é obrigatório`) : z.string().optional();
     }
 
-    if (f.required) {
-      // For text-like fields, enforce non-empty string; for others, ensure value exists
-      if (typeHint.includes('int') || typeHint === 'number' || typeHint.includes('float') || typeHint.includes('decimal') || typeHint.includes('date') || typeHint.includes('time') || typeHint.includes('bool')) {
-        schema = schema.refine((v) => v !== undefined && v !== null, { message: `${f.label ?? key} é obrigatório` });
-      } else {
-        schema = z.string().min(1, `${f.label ?? key} é obrigatório`);
-      }
+    // For non-string primitive types when required, add a friendly message
+    if (f.required && (isNumeric || isBool || isDate)) {
+      schema = schema.refine((v) => v !== undefined && v !== null, { message: `${f.label ?? key} é obrigatório` });
     }
 
     if (f.default_value !== undefined && f.default_value !== null && f.default_value !== '') {

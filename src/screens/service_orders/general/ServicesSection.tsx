@@ -2,21 +2,36 @@ import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { InputNumber } from 'primereact/inputnumber';
 import { AutoComplete } from 'primereact/autocomplete';
-import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
-import { useState } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { Controller, useFieldArray, useFormContext, useWatch } from 'react-hook-form';
+import { useState, useEffect } from 'react';
 import serviceService from '../../../services/serviceService';
 import type { Service } from '../../../models/service';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
 import { normalizeListResponse } from '../../../utils/apiHelpers';
 
-export default function ServicesSection() {
-  const { control, setValue, getValues } = useFormContext();
-  const { fields, append, remove } = useFieldArray({ control, name: 'services' });
+// Props are optional; component will use form context when not provided
+type Props = {
+  control?: any;
+  setValue?: any;
+  getValues?: any;
+  selectedServiceTypeId?: string | null;
+};
+
+export default function ServicesSection(props?: Props) {
+  const ctx = useFormContext<Record<string, unknown>>();
+  const control = props?.control ?? ctx.control;
+  const setValue = props?.setValue ?? ctx.setValue;
+  const getValues = props?.getValues ?? ctx.getValues;
+  // call useWatch unconditionally to satisfy hooks rules
+  const watchedServiceTypeId = useWatch({ control, name: 'service_type_id' }) as string | undefined;
+  const serviceTypeId = props?.selectedServiceTypeId ?? watchedServiceTypeId;
+  const { fields, append, remove } = useFieldArray({ control: control as any, name: 'services' as any });
 
   const [serviceSuggestions, setServiceSuggestions] = useState<Service[]>([]);
   const [serviceCache, setServiceCache] = useState<Record<string, Service>>({});
   const qc = useQueryClient();
+
   // when fields change (e.g., editing existing order) ensure cached items exist
   useEffect(() => {
     // collect ids currently present in services field values
@@ -43,13 +58,12 @@ export default function ServicesSection() {
         }
       }
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
 
   const onServiceComplete = async (query: string) => {
     try {
-  const res = await serviceService.list({ per_page: 20, filters: { name: query } });
+      const res = await serviceService.list({ per_page: 20, filters: { name: query } });
       const items = normalizeListResponse<Service>(res);
       setServiceSuggestions(items ?? []);
       const map: Record<string, Service> = {};
@@ -72,7 +86,7 @@ export default function ServicesSection() {
 
       <div className="flex items-center justify-between">
         <div className="invisible mt-2 text-sm text-muted">Adicione os serviços clicando no ícone ao lado</div>
-        <Button icon="pi pi-plus" className="p-button-text" onClick={addRow} />
+        {serviceTypeId && <Button icon="pi pi-plus" className="p-button-text" onClick={addRow} />}
       </div>
 
       <div className="mt-4 space-y-3">
