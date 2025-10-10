@@ -63,19 +63,19 @@ export default function NewServiceOrder() {
       const { schema, defaults } = buildZodSchemaFromFields(fields || []);
 
       // schema for services array items
-        const serviceItemSchema = z.object({
-          service_id: z.string().min(1, 'Serviço obrigatório'),
-          unit_price: z.union([z.string(), z.number()]).refine((v) => {
-            const n = Number(String(v));
-            return !Number.isNaN(n);
-          }, { message: 'Valor inválido' }),
-          quantity: z.union([z.string(), z.number()]).transform((v) => Math.floor(Number(String(v)))),
-          total_price: z.union([z.string(), z.number()]).refine((v) => {
-            const n = Number(String(v));
-            return !Number.isNaN(n);
-          }, { message: 'Valor inválido' }),
-          scope: z.string().optional(),
-        });
+      const serviceItemSchema = z.object({
+        service_id: z.string().min(1, 'Serviço obrigatório'),
+        unit_price: z.union([z.string(), z.number()]).refine((v) => {
+          const n = Number(String(v));
+          return !Number.isNaN(n);
+        }, { message: 'Valor inválido' }),
+        quantity: z.union([z.string(), z.number()]).transform((v) => Math.floor(Number(String(v)))),
+        total_price: z.union([z.string(), z.number()]).refine((v) => {
+          const n = Number(String(v));
+          return !Number.isNaN(n);
+        }, { message: 'Valor inválido' }),
+        scope: z.string().optional(),
+      });
 
       const servicesSchema = z.object({ services: z.array(serviceItemSchema).optional().default([]) });
 
@@ -103,8 +103,8 @@ export default function NewServiceOrder() {
   });
 
   // react-hook-form setup (schema will be set dynamically)
-    const methods = useForm({ resolver: zodSchema ? zodResolver(zodSchema) : undefined });
-    const { register, control, handleSubmit, reset, formState, setValue } = methods;
+  const methods = useForm({ resolver: zodSchema ? zodResolver(zodSchema) : undefined });
+  const { register, control, handleSubmit, reset, formState, setValue } = methods;
 
   const onSubmit = handleSubmit((data) => {
     const payload: Record<string, unknown> = { ...data } as Record<string, unknown>;
@@ -163,7 +163,12 @@ export default function NewServiceOrder() {
         </div>
 
         <TabView>
-          <TabPanel header="ORDEM DE SERVIÇO">
+          <TabPanel header={
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <i className="pi pi-file" />
+              ORDEM DE SERVIÇO
+            </span>
+          }>
             <FormProvider {...methods}>
               <div className="grid grid-cols-1 gap-4">
                 <GeneralDataSection serviceTypeId={selectedServiceTypeId} fields={serviceTypeFields} register={register} control={control} errors={formState.errors} setValue={setValue} />
@@ -175,16 +180,39 @@ export default function NewServiceOrder() {
               </div>
             </FormProvider>
           </TabPanel>
-          <TabPanel header="DADOS DA OPERAÇÃO">
+          <TabPanel
+            header={
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <i className="pi pi-check-square" />
+                DADOS DA OPERAÇÃO
+              </span>
+            }
+          >
             <div>Operações (aparecerá somente após criação/edição)</div>
           </TabPanel>
-          <TabPanel header="DESIGNAÇÕES E AGENDAMENTOS">
+
+          <TabPanel header={
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <i className="pi pi-calendar" />
+              DESIGNAÇÕES E AGENDAMENTOS
+            </span>
+          }>
             <div>Designações e Agendamentos</div>
           </TabPanel>
-          <TabPanel header="CUSTOS ENVOLVIDOS">
+          <TabPanel header={
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <i className="pi pi-calculator" />
+              CUSTOS ENVOLVIDOS
+            </span>
+          }>
             <div>Custos</div>
           </TabPanel>
-          <TabPanel header="FATURAMENTO">
+          <TabPanel header={
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <i className="pi pi-dollar" />
+              FATURAMENTO
+            </span>
+          }>
             <div>Faturamento</div>
           </TabPanel>
         </TabView>
