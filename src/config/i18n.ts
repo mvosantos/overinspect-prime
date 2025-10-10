@@ -39,7 +39,7 @@ const resources = {
     },
     common: {
       dark_mode: "Modo escuro",
-      light_mode: "Modo claro",      
+      light_mode: "Modo claro",
       email: "E-mail",
       password: "Senha",
       enter: "Entrar",
@@ -478,7 +478,7 @@ const resources = {
     },
     common: {
       dark_mode: "Dark mode",
-      light_mode: "Light mode",      
+      light_mode: "Light mode",
       email: "E-mail",
       password: "Password",
       enter: "Signin",
@@ -758,7 +758,7 @@ const resources = {
       save_parameters: "Save parameters",
       default_field_value: "Default field value",
       service_type_required: "You have to select the service type",
-      assigned_inspectors: "Assignments and Schedule",    
+      assigned_inspectors: "Assignments and Schedule",
       payment_unit_price: "Custo unitário",
       involved_costs: "Costs involved",
       billing: "Billing",

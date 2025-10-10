@@ -101,7 +101,7 @@ export default function CompanyList() {
         </DataTable>
       </div>
 
-      <Dialog header={t("common:confirm_deletion")} visible={!!selectedDelete} onHide={() => setSelectedDelete(null)}>
+      <Dialog header={t("common:delete_record")} visible={!!selectedDelete} onHide={() => setSelectedDelete(null)}>
         <p>{t("common:delete_record_confirmation")}</p>
         <div className="flex justify-end gap-2 mt-4">
           <Button label={t("common:cancelUCase")} onClick={() => setSelectedDelete(null)} />
