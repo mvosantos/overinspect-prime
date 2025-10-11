@@ -126,7 +126,7 @@ export default function PaymentsSection(props?: Props) {
             <div className="md:col-span-1">
               <label className="block mb-1">{t('new_service_order:payment_total_price')}</label>
               <Controller control={control} name={`payments.${idx}.total_price`} render={({ field }) => (
-                <InputNumber className="w-full bg-gray-50" value={field.value ?? null} mode="currency" currency="BRL" locale="pt-BR" disabled />
+                <InputNumber className="w-full" value={field.value ?? null} mode="currency" currency="BRL" locale="pt-BR" disabled />
               )} />
             </div>
 

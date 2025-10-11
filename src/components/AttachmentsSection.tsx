@@ -83,7 +83,7 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
     }
   }, [append, path]);
 
-  const handleDownload = useCallback(async (file: AttachmentsOrderService) => {
+  const handleDownload = useCallback(async (file: AttachmentsOrderService, index?: number) => {
     try {
       // If this is a local-only file (has fileObject and no persisted id), just preview/download locally
       if (file?.fileObject && !(file.id)) {
@@ -92,12 +92,14 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
         return;
       }
 
-      // Always attempt to resolve the server-provided id from the form's attachments
-      // node (service_order.attachments). This guarantees we pass the id that the
-      // server has associated with the attachment on the service order.
+      // Prefer resolving by index if provided (position in the attachments array)
       const attachmentsLive = getValues(name) as AttachmentsOrderService[] | undefined;
       let serverId: string | undefined;
-      if (attachmentsLive && Array.isArray(attachmentsLive)) {
+      if (typeof index === 'number' && attachmentsLive && Array.isArray(attachmentsLive) && attachmentsLive[index]) {
+        serverId = (attachmentsLive[index] as AttachmentsOrderService).id as string | undefined;
+      }
+      // Fallback: try to resolve by filename/name
+      if (!serverId && attachmentsLive && Array.isArray(attachmentsLive)) {
         const match = attachmentsLive.find((a) => a && (a.filename === file.filename || a.name === file.name) && a.id);
         if (match && match.id) serverId = match.id;
       }
@@ -117,7 +119,7 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
     }
   }, [getValues, name]);
 
-  const handlePreview = useCallback(async (file: AttachmentsOrderService) => {
+  const handlePreview = useCallback(async (file: AttachmentsOrderService, index?: number) => {
     try {
       setPreviewLoading(true);
       // If local file, preview using the local blob
@@ -131,19 +133,70 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
         return;
       }
 
-      // Resolve server id from form attachments and preview that URL
+      // Prefer resolving by index if provided
       const attachmentsLive = getValues(name) as AttachmentsOrderService[] | undefined;
       let serverId: string | undefined;
-      if (attachmentsLive && Array.isArray(attachmentsLive)) {
+      if (typeof index === 'number' && attachmentsLive && Array.isArray(attachmentsLive) && attachmentsLive[index]) {
+        serverId = (attachmentsLive[index] as AttachmentsOrderService).id as string | undefined;
+      }
+      if (!serverId && attachmentsLive && Array.isArray(attachmentsLive)) {
         const match = attachmentsLive.find((a) => a && (a.filename === file.filename || a.name === file.name) && a.id);
         if (match && match.id) serverId = match.id;
       }
 
       if (serverId) {
         const url = await AttachmentService.downloadAttachment(serverId);
+        const name = file.name ?? file.filename ?? 'file';
+        const extMatch = (name || '').toLowerCase().match(/\.([a-z0-9]+)(?:\?|$)/);
+        const ext = extMatch ? extMatch[1] : (url ? (url.toLowerCase().match(/\.([a-z0-9]+)(?:\?|$)/) || [])[1] : undefined);
+
+        // If PDF, fetch blob and create an object URL so embed will render
+        if (ext === 'pdf') {
+          try {
+            const resp = await fetch(url);
+            const blob = await resp.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            setPreviewUrl(objectUrl);
+            setPreviewIsObjectUrl(true);
+            setPreviewName(name);
+            setPreviewVisible(true);
+            return;
+          } catch {
+            // fallback to opening the URL directly
+            setPreviewUrl(url);
+            setPreviewIsObjectUrl(false);
+            setPreviewName(name);
+            setPreviewVisible(true);
+            return;
+          }
+        }
+
+        // For Office files try Office Online viewer (may require public URL)
+        if (ext === 'xlsx' || ext === 'xls' || ext === 'docx' || ext === 'pptx') {
+          try {
+            const officeViewer = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
+            setPreviewUrl(officeViewer);
+            setPreviewIsObjectUrl(false);
+            setPreviewName(name);
+            setPreviewVisible(true);
+            return;
+          } catch {
+            // fallback to download
+            toast.current?.show({ severity: 'info', summary: 'Preview indisponível', detail: 'Pré-visualização não disponível — iniciando download' });
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = name;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            return;
+          }
+        }
+
+        // default: open URL in modal (iframe/embed)
         setPreviewUrl(url);
         setPreviewIsObjectUrl(false);
-        setPreviewName(file.name ?? file.filename ?? 'file');
+        setPreviewName(name);
         setPreviewVisible(true);
         return;
       }
@@ -239,8 +292,8 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
                   ) : (
                     <span className="p-badge p-badge-warning" style={{ marginRight: '0.25rem', fontSize: '0.65rem', padding: '0.2rem 0.5rem' }}>Local</span>
                   )}
-                  <Button icon="pi pi-eye" className="p-button-text" onClick={() => handlePreview(f as any)} disabled={previewLoading} />
-                  <Button icon="pi pi-download" className="p-button-text" onClick={() => handleDownload(f as any)} />
+                  <Button icon="pi pi-eye" className="p-button-text" onClick={() => handlePreview(f as any, idx)} disabled={previewLoading} />
+                  <Button icon="pi pi-download" className="p-button-text" onClick={() => handleDownload(f as any, idx)} />
                   <Button icon="pi pi-trash" className="p-button-text p-button-danger" onClick={() => handleRemove(idx)} />
                 </div>
               </li>

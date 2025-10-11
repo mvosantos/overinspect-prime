@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { BreadCrumb } from 'primereact/breadcrumb';
+import { Timeline } from 'primereact/timeline';
+import { Dialog } from 'primereact/dialog';
 import { Dropdown } from 'primereact/dropdown';
 import { Toast } from 'primereact/toast';
 import { TabView, TabPanel } from 'primereact/tabview';
@@ -21,6 +23,7 @@ import { buildZodSchemaFromFields } from '../../utils/dynamicSchema';
 import z from 'zod';
 import type { ZodTypeAny } from 'zod';
 import { useTranslation } from 'react-i18next';
+import { formatForPayload, parseToDateOrOriginal, formatShortDateTime } from '../../utils/dateHelpers';
 import ScheduleSection from './general/ScheduleSection';
 import PaymentsSection from './general/PaymentsSection';
 import PageFooter from '../../components/PageFooter';
@@ -40,6 +43,9 @@ export default function NewServiceOrder() {
   const [zodSchema, setZodSchema] = useState<z.ZodObject<Record<string, ZodTypeAny>> | null>(null);
   const currentZodRef = useRef<z.ZodTypeAny | null>(null);
   const [formDefaults, setFormDefaults] = useState<Record<string, unknown>>({});
+  type TimelineItem = { statusName: string; dateVal: string | Date | null; userName?: string; raw?: Record<string, unknown> };
+  const [timelineModalVisible, setTimelineModalVisible] = useState(false);
+  const [selectedTimelineItem, setSelectedTimelineItem] = useState<TimelineItem | null>(null);
   
 
   const { id: routeId } = useParams();
@@ -140,27 +146,8 @@ export default function NewServiceOrder() {
 
   const fo = fetchedServiceOrder as Record<string, unknown>;
 
-    // parse incoming date strings to Date where appropriate. Supported
-    // incoming formats: 'yyyy-mm-dd', 'yyyy-mm-dd hh:mm' (maybe seconds),
-    // or ISO-ish strings. Returns Date when parseable, otherwise returns
-    // original value.
-    const parseDate = (v: unknown) => {
-      if (!v || typeof v !== 'string') return v;
-      // try Date constructor first
-      const d1 = new Date(v);
-      if (!Number.isNaN(d1.getTime())) return d1;
-      // try patterns like 'yyyy-mm-dd' or 'yyyy-mm-dd hh:mm[:ss]'
-      const m = /^\s*(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?\s*$/.exec(v);
-      if (!m) return v;
-      const year = Number(m[1]);
-      const month = Number(m[2]) - 1;
-      const day = Number(m[3]);
-      const hour = m[4] ? Number(m[4]) : 0;
-      const minute = m[5] ? Number(m[5]) : 0;
-      const second = m[6] ? Number(m[6]) : 0;
-      const dt = new Date(year, month, day, hour, minute, second);
-      return Number.isNaN(dt.getTime()) ? v : dt;
-    };
+    // parse incoming date-like values to Date when possible, otherwise keep original
+    const parseDate = (v: unknown) => parseToDateOrOriginal(v);
 
     const servicesArr = Array.isArray(fo.service_order_services)
       ? (fo.service_order_services as unknown[]).map((si) => {
@@ -357,33 +344,8 @@ export default function NewServiceOrder() {
       // ensure service_type_id is present
       if (selectedServiceTypeId) payload.service_type_id = selectedServiceTypeId;
 
-      // serialize dates
-      // helper: format Date or string to 'yyyy-mm-dd HH:MM' (no seconds)
-      const pad = (n: number) => n.toString().padStart(2, '0');
-      const formatDateForPayload = (v: unknown) => {
-        if (!v) return v;
-        let d: Date | null = null;
-        if (v instanceof Date) d = v;
-        else if (typeof v === 'string') {
-          // try to parse strings like 'Sun Jul 20 2025 21:00:00 GMT-0300 (...)' or 'yyyy-mm-dd hh:mm[:ss]'
-          const parsed = new Date(v);
-          if (!Number.isNaN(parsed.getTime())) d = parsed;
-          else {
-            const m = /^\s*(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?\s*$/.exec(v);
-            if (m) {
-              const year = Number(m[1]);
-              const month = Number(m[2]) - 1;
-              const day = Number(m[3]);
-              const hour = m[4] ? Number(m[4]) : 0;
-              const minute = m[5] ? Number(m[5]) : 0;
-              const second = m[6] ? Number(m[6]) : 0;
-              d = new Date(year, month, day, hour, minute, second);
-            }
-          }
-        }
-        if (!d) return v;
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-      };
+      // serialize dates using centralized helper
+      const formatDateForPayload = (v: unknown) => formatForPayload(v);
 
       // apply formatting for any date-like keys
       try {
@@ -432,6 +394,16 @@ export default function NewServiceOrder() {
         payload.attachments = finalAttachments;
       } catch {
         payload.attachments = [];
+      }
+
+      // Ensure schedules are taken from the live form state if not present on the submitted data
+      try {
+        const schedulesFromData = (payload && typeof payload === 'object') ? (payload.schedules as unknown) : undefined;
+        const schedulesFromForm = getValues('schedules');
+        const finalSchedules = Array.isArray(schedulesFromData) ? schedulesFromData : (Array.isArray(schedulesFromForm) ? schedulesFromForm : []);
+        payload.schedules = finalSchedules;
+      } catch {
+        payload.schedules = [];
       }
 
       if (typeof console !== 'undefined' && typeof console.info === 'function') console.info('[NewServiceOrder] About to submit payload.attachments:', payload.attachments);
@@ -503,9 +475,9 @@ export default function NewServiceOrder() {
       <FormProvider {...methodsLocal}>
         <div className="pb-24 card">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl">{currentOrderId ? `${t('service_orders:service_order')} ${getValues('order_identifier')}` : t('records:new_service_order')}</h1>
+            <h1 className="text-2xl">{currentOrderId ? `${t('service_orders:service_order')} ${getValues('number')}` : t('records:new_service_order')}</h1>
             <div className="flex gap-2">
-              <Dropdown value={selectedServiceTypeId} options={serviceTypes.map(t => ({ label: t.name, value: t.id }))} onChange={(e) => { setSelectedServiceTypeId(e.value ?? null); setValue('service_type_id', e.value ?? null); }} placeholder={t('service_orders:select_service_type')} />
+              <Dropdown value={selectedServiceTypeId} options={serviceTypes.map(t => ({ label: t.name, value: t.id }))} onChange={(e) => { setSelectedServiceTypeId(e.value ?? null); setValue('service_type_id', e.value ?? null); }} placeholder={t('service_orders:select_service_type')} disabled={!!selectedServiceTypeId} className='w-[400px]' />
             </div>
           </div>
 
@@ -518,7 +490,37 @@ export default function NewServiceOrder() {
                 ORDEM DE SERVIÇO
               </span>
             }>
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1">
+                {/* Timeline: show only when editing and history exists */}
+                {isEditing && fetchedServiceOrder && Array.isArray((fetchedServiceOrder as Record<string, unknown>).service_order_status_history) && ((fetchedServiceOrder as Record<string, unknown>).service_order_status_history as unknown[]).length > 0 && (
+                  <>
+                    {(() => {
+                      const items: TimelineItem[] = ((fetchedServiceOrder as Record<string, unknown>).service_order_status_history as unknown[]).map((h) => {
+                        const hi = h as Record<string, unknown>;
+                        // primary: new_status.name, fallback to service_order_status.name or raw name fields
+                        const statusName = (hi.new_status && typeof hi.new_status === 'object')
+                          ? ((hi.new_status as Record<string, unknown>).name as string ?? '—')
+                          : (hi.new_status_name as string) ?? ((hi.service_order_status && typeof hi.service_order_status === 'object') ? ((hi.service_order_status as Record<string, unknown>).name as string) : '—');
+                        const dateVal = (hi.created_at ?? hi.date ?? hi.updated_at) as string | Date | null;
+                        const userName = (hi.user && typeof hi.user === 'object') ? ((hi.user as Record<string, unknown>).name as string) : (hi.user_name as string) ?? '';
+                        return { statusName, dateVal, userName, raw: hi };
+                      });
+                      return (
+                        <>
+                          <Timeline value={items} layout="horizontal" align="bottom" style={{ padding: 0, marginBottom: 0 }} className="!py-0 !my-0 !mb-0" content={(item: TimelineItem) => (
+                            <div className="text-sm text-left cursor-pointer min-w-[160px] max-w-[260px]" onClick={() => { setSelectedTimelineItem(item); setTimelineModalVisible(true); }}>
+                              <div className="text-base font-semibold leading-5 truncate">{item.statusName}</div>
+                              <div className="flex flex-col gap-0 overflow-hidden">
+                                {item.userName ? <div className="text-base leading-4 text-gray-600 truncate">{item.userName}</div> : null}
+                                <div className="text-base leading-4 text-gray-400 truncate">{String(formatShortDateTime(item.dateVal) ?? '')}</div>
+                              </div>
+                            </div>
+                          )} />
+                        </>
+                      );
+                    })()}
+                  </>
+                )}
                 <GeneralDataSection serviceTypeId={selectedServiceTypeId} fields={serviceTypeFields} register={register} control={control} errors={formState.errors} setValue={setValue} />
                 <ServicesSection control={control} setValue={setValue} getValues={getValues} selectedServiceTypeId={selectedServiceTypeId} />
                 {
@@ -603,6 +605,17 @@ export default function NewServiceOrder() {
               <div>Faturamento</div>
             </TabPanel>
           </TabView>
+          {/* Timeline detail modal */}
+          <Dialog header="Detalhes do histórico" visible={timelineModalVisible} style={{ width: '600px' }} onHide={() => { setTimelineModalVisible(false); setSelectedTimelineItem(null); }}>
+            {selectedTimelineItem ? (
+              <div>
+                <div className="font-semibold min-w-max">{selectedTimelineItem.statusName}</div>
+                <div className="font-medium min-w-max">{selectedTimelineItem.userName}</div>
+                <div className="text-lg text-gray-500">{String(formatShortDateTime(selectedTimelineItem.dateVal) ?? '')}</div>
+                <div className="p-2 text-sm bg-gray-100 rounded">{String(((selectedTimelineItem.raw ?? {}) as Record<string, unknown>).comment ?? '')}</div>
+              </div>
+            ) : null}
+          </Dialog>
 
           {/* Hidden page-level save target removed: using SaveContext to register page save handlers */}
         </div>
@@ -635,7 +648,7 @@ export default function NewServiceOrder() {
           </div>
         )}
         {/* footer shows when a service type is selected (keep previous UX): PageFooter now triggers SaveContext */}
-        {selectedServiceTypeId && <PageFooter />}
+  {selectedServiceTypeId && <PageFooter currentOrderId={currentOrderId} currentStatusId={(formDefaults && (formDefaults.service_order_status && (formDefaults.service_order_status as Record<string, unknown>).id) as string) ?? undefined} />}
       </div>
     </div>
   );
