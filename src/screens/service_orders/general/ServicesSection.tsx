@@ -6,6 +6,7 @@ import { AutoComplete } from 'primereact/autocomplete';
 import { Controller, useFieldArray, useFormContext, useWatch } from 'react-hook-form';
 import { makeAutoCompleteOnChange, resolveAutoCompleteValue } from '../../../utils/formHelpers';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import serviceService from '../../../services/serviceService';
 import type { Service } from '../../../models/service';
 import { useQueryClient } from '@tanstack/react-query';
@@ -20,6 +21,7 @@ type Props = {
 };
 
 export default function ServicesSection(props?: Props) {
+  const { t } = useTranslation(['new_service_order', 'service_orders']);
   const ctx = useFormContext<Record<string, unknown>>();
   const control = props?.control ?? ctx.control;
   const setValue = props?.setValue ?? ctx.setValue;
@@ -76,6 +78,24 @@ export default function ServicesSection(props?: Props) {
   };
 
   const addRow = () => append({ service_id: null, unit_price: '0.00', quantity: 1, total_price: '0.00', scope: '' });
+
+  // local parser (handles '.' as thousand and ',' as decimal)
+  const parseNumberUniversalLocal = (v?: string | number | null) => {
+    if (v === null || v === undefined) return NaN;
+    if (typeof v === 'number') return v;
+    const s = String(v).replace(/\./g, '').replace(/,/g, '.');
+    const n = Number(s);
+    return isNaN(n) ? NaN : n;
+  };
+
+  function calcGrandTotal() {
+    const items = getValues?.('services') as unknown as Record<string, unknown>[] | undefined;
+    const total = (items ?? []).reduce((acc: number, curr: Record<string, unknown>) => {
+      const v = parseNumberUniversalLocal(curr?.total_price as unknown as string | number | null);
+      return acc + (isNaN(v) ? 0 : v);
+    }, 0);
+    return total;
+  }
 
   return (
     <Card>
@@ -176,6 +196,12 @@ export default function ServicesSection(props?: Props) {
             </div>
           </div>
         ))}
+      </div>
+      <div className="flex justify-start w-full my-4 font-bold">
+        {t('new_service_order:total_price')}: 
+        <div id="services_total_price" className="mx-4 font-normal">
+          {Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(calcGrandTotal())}
+        </div>
       </div>
     </Card>
   );

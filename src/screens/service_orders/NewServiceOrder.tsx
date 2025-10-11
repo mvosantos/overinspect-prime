@@ -386,6 +386,29 @@ export default function NewServiceOrder() {
         payload.services = normalized;
       }
 
+      // Normalize payments array if present (or take from form if not present)
+      const maybePayments = (payload && typeof payload === 'object' ? (payload as Record<string, unknown>)['payments'] : undefined);
+      const paymentsFromForm = getValues('payments');
+      const paymentsToNormalize = Array.isArray(maybePayments) ? maybePayments : (Array.isArray(paymentsFromForm) ? paymentsFromForm : []);
+      if (Array.isArray(paymentsToNormalize)) {
+        const normalizedPayments = paymentsToNormalize.map((p) => {
+          const item = (p && typeof p === 'object') ? (p as Record<string, unknown>) : {} as Record<string, unknown>;
+          const unitNum = Number(String(item.unit_price ?? 0));
+          const qtyNum = Math.floor(Number(String(item.quantity ?? 0)) || 0);
+          const totalNum = Number(String(item.total_price ?? (unitNum * qtyNum)));
+          return {
+            id: (item.id as string) ?? undefined,
+            description: (item.description as string) ?? '',
+            document_type_id: (item.document_type_id as string) ?? null,
+            document_number: (item.document_number as string) ?? '',
+            unit_price: !Number.isNaN(unitNum) ? (Number(unitNum).toFixed(2)) : '0.00',
+            quantity: String(qtyNum),
+            total_price: !Number.isNaN(totalNum) ? (Number(totalNum).toFixed(2)) : '0.00',
+          } as Record<string, unknown>;
+        });
+        payload.payments = normalizedPayments;
+      }
+
       // Ensure attachments are taken from the live form state if not present on the submitted data
       try {
         const attachmentsFromData = (payload && typeof payload === 'object') ? (payload.attachments as unknown) : undefined;
