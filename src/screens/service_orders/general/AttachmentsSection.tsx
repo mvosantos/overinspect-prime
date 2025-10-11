@@ -117,7 +117,6 @@ export default function AttachmentsSection({ parentType = 'service_order', paren
 
   const handleDelete = async (id: string) => {
     try {
-      console.log('attachment id:', id);
       await serviceOrderService.deleteAttachment(id);
       toast.current?.show({ severity: 'success', summary: 'Removido', detail: 'Anexo removido' });
       await fetchAttachments();

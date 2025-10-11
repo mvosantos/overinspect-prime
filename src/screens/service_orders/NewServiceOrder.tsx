@@ -13,8 +13,9 @@ import GeneralDataSection from './general/GeneralDataSection';
 import ServicesSection from './general/ServicesSection';
 import DatesSitesSection from './general/DatesSitesSection';
 import WeighingSection from './general/WeighingSection';
-import AttachmentsSection from './general/AttachmentsSection';
+// AttachmentsSection removed — attachments handling moved elsewhere
 import { useForm, FormProvider } from 'react-hook-form';
+import AttachmentsSection from '../../components/AttachmentsSection';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { buildZodSchemaFromFields } from '../../utils/dynamicSchema';
 import z from 'zod';
@@ -139,11 +140,26 @@ export default function NewServiceOrder() {
 
   const fo = fetchedServiceOrder as Record<string, unknown>;
 
-    // parse ISO-like date strings to Date where appropriate
+    // parse incoming date strings to Date where appropriate. Supported
+    // incoming formats: 'yyyy-mm-dd', 'yyyy-mm-dd hh:mm' (maybe seconds),
+    // or ISO-ish strings. Returns Date when parseable, otherwise returns
+    // original value.
     const parseDate = (v: unknown) => {
       if (!v || typeof v !== 'string') return v;
-      const d = new Date(v);
-      return Number.isNaN(d.getTime()) ? v : d;
+      // try Date constructor first
+      const d1 = new Date(v);
+      if (!Number.isNaN(d1.getTime())) return d1;
+      // try patterns like 'yyyy-mm-dd' or 'yyyy-mm-dd hh:mm[:ss]'
+      const m = /^\s*(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?\s*$/.exec(v);
+      if (!m) return v;
+      const year = Number(m[1]);
+      const month = Number(m[2]) - 1;
+      const day = Number(m[3]);
+      const hour = m[4] ? Number(m[4]) : 0;
+      const minute = m[5] ? Number(m[5]) : 0;
+      const second = m[6] ? Number(m[6]) : 0;
+      const dt = new Date(year, month, day, hour, minute, second);
+      return Number.isNaN(dt.getTime()) ? v : dt;
     };
 
     const servicesArr = Array.isArray(fo.service_order_services)
@@ -300,6 +316,16 @@ export default function NewServiceOrder() {
     onSuccess: (data: ServiceOrder) => {
       toast.current?.show({ severity: 'success', summary: 'Sucesso', detail: 'Ordem criada' });
       if (data?.id) setCurrentOrderId(data.id);
+      // replace any temporary attachments in the form with the server-returned list
+      try {
+        if (data && typeof data === 'object') {
+          // set attachments field so temporary file rows are removed
+          // data.attachments shape should match form field
+          setValue('attachments', (data as ServiceOrder).attachments ?? []);
+        }
+      } catch {
+        // ignore
+      }
       queryClient.invalidateQueries({ queryKey: ['service-orders'] });
     },
     onError: () => toast.current?.show({ severity: 'error', summary: 'Erro', detail: 'Não foi possível criar' }),
@@ -312,6 +338,13 @@ export default function NewServiceOrder() {
     onSuccess: (data: ServiceOrder) => {
       toast.current?.show({ severity: 'success', summary: 'Sucesso', detail: 'Ordem atualizada' });
       if (data?.id) setCurrentOrderId(data.id);
+      try {
+        if (data && typeof data === 'object') {
+          setValue('attachments', (data as ServiceOrder).attachments ?? []);
+        }
+      } catch {
+        // ignore
+      }
       queryClient.invalidateQueries({ queryKey: ['service-orders'] });
     },
     onError: () => toast.current?.show({ severity: 'error', summary: 'Erro', detail: 'Não foi possível atualizar' }),
@@ -325,8 +358,45 @@ export default function NewServiceOrder() {
       if (selectedServiceTypeId) payload.service_type_id = selectedServiceTypeId;
 
       // serialize dates
-      if (payload.operation_starts_at && payload.operation_starts_at instanceof Date) {
-        payload.operation_starts_at = (payload.operation_starts_at as Date).toISOString();
+      // helper: format Date or string to 'yyyy-mm-dd HH:MM' (no seconds)
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const formatDateForPayload = (v: unknown) => {
+        if (!v) return v;
+        let d: Date | null = null;
+        if (v instanceof Date) d = v;
+        else if (typeof v === 'string') {
+          // try to parse strings like 'Sun Jul 20 2025 21:00:00 GMT-0300 (...)' or 'yyyy-mm-dd hh:mm[:ss]'
+          const parsed = new Date(v);
+          if (!Number.isNaN(parsed.getTime())) d = parsed;
+          else {
+            const m = /^\s*(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?\s*$/.exec(v);
+            if (m) {
+              const year = Number(m[1]);
+              const month = Number(m[2]) - 1;
+              const day = Number(m[3]);
+              const hour = m[4] ? Number(m[4]) : 0;
+              const minute = m[5] ? Number(m[5]) : 0;
+              const second = m[6] ? Number(m[6]) : 0;
+              d = new Date(year, month, day, hour, minute, second);
+            }
+          }
+        }
+        if (!d) return v;
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      };
+
+      // apply formatting for any date-like keys
+      try {
+        Object.keys(payload).forEach((k) => {
+          if (!k) return;
+          if (k.endsWith('_at') || k.endsWith('_date') || k === 'operation_starts_at' || k === 'operation_finishes_at') {
+            const val = (payload as Record<string, unknown>)[k];
+            const formatted = formatDateForPayload(val);
+            (payload as Record<string, unknown>)[k] = formatted;
+          }
+        });
+      } catch {
+        // ignore any formatting errors
       }
 
       // ensure num_containers is numeric or undefined
@@ -354,6 +424,17 @@ export default function NewServiceOrder() {
         payload.services = normalized;
       }
 
+      // Ensure attachments are taken from the live form state if not present on the submitted data
+      try {
+        const attachmentsFromData = (payload && typeof payload === 'object') ? (payload.attachments as unknown) : undefined;
+        const attachmentsFromForm = getValues('attachments');
+        const finalAttachments = Array.isArray(attachmentsFromData) ? attachmentsFromData : (Array.isArray(attachmentsFromForm) ? attachmentsFromForm : []);
+        payload.attachments = finalAttachments;
+      } catch {
+        payload.attachments = [];
+      }
+
+      if (typeof console !== 'undefined' && typeof console.info === 'function') console.info('[NewServiceOrder] About to submit payload.attachments:', payload.attachments);
       if (isEditing && routeId) {
         updateMutation.mutate({ id: routeId, payload });
       } else {
@@ -483,7 +564,7 @@ export default function NewServiceOrder() {
                   })()
                 }
                 <WeighingSection control={control} setValue={setValue} getValues={getValues} selectedServiceTypeId={selectedServiceTypeId} />
-                <AttachmentsSection control={control} setValue={setValue} getValues={getValues} selectedServiceTypeId={selectedServiceTypeId} parentType="service_order" parentId={currentOrderId} />
+                <AttachmentsSection name="attachments" path="service_order" />
               </div>
             </TabPanel>
             <TabPanel
