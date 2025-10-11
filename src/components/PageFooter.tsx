@@ -146,7 +146,7 @@ export default function PageFooter({ onSaveClick, label = 'Salvar', currentOrder
       <div className={`fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between p-3 border-t ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
         <div className="flex items-center gap-2">
           {showStatusDropdown && (
-            <Dropdown value={selectedStatus} options={statusOptions} onChange={(e) => setSelectedStatus(e.value)} placeholder="Mudar status" className="w-48" disabled={loadingTargets} />
+            <Dropdown value={selectedStatus} options={statusOptions} onChange={(e) => setSelectedStatus(e.value)} placeholder="Mudar status" className="w-48" disabled={loadingTargets || meta.isSubmitting} />
           )}
         </div>
         <div>

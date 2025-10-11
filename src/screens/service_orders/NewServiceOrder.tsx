@@ -473,7 +473,16 @@ export default function NewServiceOrder() {
 
     return (
       <FormProvider {...methodsLocal}>
-        <div className="pb-24 card">
+        <div className="relative pb-24 card">
+          {isSubmittingLocal ? (
+            // Full viewport centered loader with dark styling
+            <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto">
+              <div className="flex flex-col items-center gap-3 text-lg text-gray-900 bg-transparent">
+                <i className="text-4xl text-gray-900 pi pi-spin pi-spinner" />
+                <span className="text-lg font-medium text-gray-900">Carregando ...</span>
+              </div>
+            </div>
+          ) : null}
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl">{currentOrderId ? `${t('service_orders:service_order')} ${getValues('number')}` : t('records:new_service_order')}</h1>
             <div className="flex gap-2">

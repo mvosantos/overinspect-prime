@@ -336,7 +336,7 @@ const resources = {
       show_in_operation: "Mostrar ao operador",
       read_only_in_operation: "Operador não edita",
       required_in_operation: "Obrigatório para o operador",
-      status: "Status"
+      status: "Status",
     },
     new_service_order: {
       subsidiary: "Filial",
@@ -397,7 +397,7 @@ const resources = {
       total_price: "Preço total",
       add_new_service: "Adicionar",
       delete_new_service: "Excluir",
-      add_new_attachment: "Anexar",
+      add_new_attachment: "Anexar arquivos",
       payments_service_order: "Custos e pagamentos relacionados à ordem de serviço",
       schedules_service_order: "Designações e agendamentos",
       payment_description: "Descrição do custo",

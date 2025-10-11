@@ -5,6 +5,7 @@ import { FileUpload } from 'primereact/fileupload';
 import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFormContext, useWatch } from 'react-hook-form';
 import serviceOrderService from '../../../services/serviceOrderService';
 import AttachmentService from '../../../services/AttachmentService';
@@ -17,9 +18,10 @@ type Attachment = {
   created_at?: string;
 };
 
-type Props = { parentType?: 'service_order' | 'service_operation'; parentId?: string | null; control?: any; setValue?: any; getValues?: any; selectedServiceTypeId?: string | null };
+type Props = { parentId?: string | null; control?: any; setValue?: any; getValues?: any; selectedServiceTypeId?: string | null };
 
-export default function AttachmentsSection({ parentType = 'service_order', parentId, control: pControl, setValue: pSetValue, getValues: pGetValues, selectedServiceTypeId }: Props) {
+export default function AttachmentsSection({ parentId, control: pControl, setValue: pSetValue, getValues: pGetValues, selectedServiceTypeId }: Props) {
+  const { t } = useTranslation();
   const toast = useRef<Toast | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -145,7 +147,7 @@ export default function AttachmentsSection({ parentType = 'service_order', paren
 
 
       {serviceTypeId ? (
-        <FileUpload name="attachments" customUpload uploadHandler={customUpload} multiple accept="*" auto={false} />
+  <FileUpload name="attachments" customUpload uploadHandler={customUpload} multiple accept="*" auto={true} chooseLabel={t('new_service_order:add_new_attachment')} />
       ) : (
         <div className="text-sm text-muted">Escolha o tipo de serviço para habilitar o upload de anexos.</div>
       )}

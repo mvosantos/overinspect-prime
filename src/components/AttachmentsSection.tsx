@@ -262,7 +262,7 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
       <Toast ref={toast} />
       <div className="mb-3">
         <div className="flex items-center gap-4">
-          <FileUpload ref={fileUploadRef} name={`${name}_uploader`} customUpload uploadHandler={handleFileSelect} multiple accept="*" auto={false} disabled={uploadingCount > 0} />
+          <FileUpload ref={fileUploadRef} name={`${name}_uploader`} customUpload uploadHandler={handleFileSelect} multiple accept="*" auto={true} disabled={uploadingCount > 0} />
           {uploadingCount > 0 && (
             <div className="flex items-center gap-2">
               <ProgressSpinner style={{ width: '24px', height: '24px' }} />
