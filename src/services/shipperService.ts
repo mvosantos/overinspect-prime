@@ -2,7 +2,7 @@ import api from './api';
 import type { ApiPaginatedResponse, CrudService, ListParams } from '../models/apiTypes';
 import type { Shipper } from '../models/Shipper';
 
-const BASE = '/admin/shipper';
+const BASE = '/inspection/shipper';
 
 export type ShipperFilters = {
   name?: string;

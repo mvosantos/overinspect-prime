@@ -104,7 +104,7 @@ export default function WeighingSection(props?: Props) {
               defaultValue={weightTypeField?.default_value}
               render={({ field }) => (
                 <AutoComplete
-                  value={resolveAutoCompleteValue<WeightType>(weightTypeSuggestions, weightTypeCache, field.value) as WeightType | undefined}
+                  value={resolveAutoCompleteValue<WeightType>(weightTypeSuggestions, weightTypeCache, field.value, qc, 'weightType') as WeightType | undefined}
                   suggestions={weightTypeSuggestions}
                   field="name"
                   completeMethod={createComplete<WeightType>(weightTypeService, setWeightTypeSuggestions, 'weightType')}
@@ -127,7 +127,7 @@ export default function WeighingSection(props?: Props) {
               defaultValue={samplingTypeIdField?.default_value}
               render={({ field }) => (
                 <AutoComplete
-                  value={resolveAutoCompleteValue<SamplingType>(samplingTypeSuggestions, samplingTypeCache, field.value) as SamplingType | undefined}
+                  value={resolveAutoCompleteValue<SamplingType>(samplingTypeSuggestions, samplingTypeCache, field.value, qc, 'samplingType') as SamplingType | undefined}
                   suggestions={samplingTypeSuggestions}
                   field="name"
                   completeMethod={createComplete<SamplingType>(samplingTypeService, setSamplingTypeSuggestions, 'samplingType')}
@@ -150,7 +150,7 @@ export default function WeighingSection(props?: Props) {
               defaultValue={weighingRuleField?.default_value}
               render={({ field }) => (
                 <AutoComplete
-                  value={resolveAutoCompleteValue<WeighingRule>(weighingRuleSuggestions, weighingRuleCache, field.value) as WeighingRule | undefined}
+                  value={resolveAutoCompleteValue<WeighingRule>(weighingRuleSuggestions, weighingRuleCache, field.value, qc, 'weighingRule') as WeighingRule | undefined}
                   suggestions={weighingRuleSuggestions}
                   field="name"
                   completeMethod={createComplete<WeighingRule>(weighingRuleService, setWeighingRuleSuggestions, 'weighingRule')}
@@ -173,7 +173,7 @@ export default function WeighingSection(props?: Props) {
               defaultValue={invoiceMetricUnitField?.default_value}
               render={({ field }) => (
                 <AutoComplete
-                  value={resolveAutoCompleteValue<Measure>(measureSuggestions, measureCache, field.value) as Measure | undefined}
+                  value={resolveAutoCompleteValue<Measure>(measureSuggestions, measureCache, field.value, qc, 'measure') as Measure | undefined}
                   suggestions={measureSuggestions}
                   field="name"
                   completeMethod={createComplete<Measure>(measureService, setMeasureSuggestions, 'measure')}
@@ -212,7 +212,7 @@ export default function WeighingSection(props?: Props) {
               defaultValue={landingMetricUnitField?.default_value}
               render={({ field }) => (
                 <AutoComplete
-                  value={resolveAutoCompleteValue<Measure>(measureSuggestions, measureCache, field.value) as Measure | undefined}
+                  value={resolveAutoCompleteValue<Measure>(measureSuggestions, measureCache, field.value, qc, 'measure') as Measure | undefined}
                   suggestions={measureSuggestions}
                   field="name"
                   completeMethod={createComplete<Measure>(measureService, setMeasureSuggestions, 'measure')}

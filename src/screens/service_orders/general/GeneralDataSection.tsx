@@ -273,9 +273,9 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
   const isRequired = (name: string) => !!(metaFor(name) && metaFor(name)?.required === true);
 
   // Helper: preserve precedence for an explicitly selected item, then delegate to shared resolver
-  const getAutoCompleteValue = <T extends { id?: string }>(selectedData: T | undefined | null, suggestions: T[], cache: Record<string, T> | undefined, fieldValue: unknown) => {
+  const getAutoCompleteValue = <T extends { id?: string }>(selectedData: T | undefined | null, suggestions: T[], cache: Record<string, T> | undefined, fieldValue: unknown, cacheKey?: string) => {
     if (selectedData) return selectedData as T;
-    return resolveAutoCompleteValue<T>(suggestions, cache, fieldValue) as T | undefined;
+    return resolveAutoCompleteValue<T>(suggestions, cache, fieldValue, qc, cacheKey) as T | undefined;
   };
 
   // Adapter to convert React setState setter into the SetCacheFn expected by makeAutoCompleteOnChange
@@ -347,7 +347,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
               name="subsidiary_id"
               render={({ field }) => (
                 <AutoComplete
-                  value={getAutoCompleteValue(selectedSubs, subsSuggestions, subsCache, field.value)}
+                  value={getAutoCompleteValue(selectedSubs, subsSuggestions, subsCache, field.value, 'subsidiary')}
                   suggestions={subsSuggestions}
                   field="name"
                   completeMethod={onSubsComplete}
@@ -370,7 +370,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
               name="business_unit_id"
               render={({ field }) => (
                 <AutoComplete
-                  value={getAutoCompleteValue(selectedBusinessUnit, businessUnitSuggestions, businessUnitCache, field.value)}
+                  value={getAutoCompleteValue(selectedBusinessUnit, businessUnitSuggestions, businessUnitCache, field.value, 'businessUnit')}
                   suggestions={businessUnitSuggestions}
                   field="name"
                   completeMethod={onBusinessUnitComplete}
@@ -397,7 +397,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
               name="client_id"
               render={({ field }) => (
                 <AutoComplete
-                  value={getAutoCompleteValue(selectedClient, clientSuggestions, clientCache, field.value)}
+                  value={getAutoCompleteValue(selectedClient, clientSuggestions, clientCache, field.value, 'client')}
                   suggestions={clientSuggestions}
                   field="name"
                   completeMethod={onClientComplete}
@@ -443,7 +443,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
               name="currency_id"
               render={({ field }) => (
                 <AutoComplete
-                  value={getAutoCompleteValue(selectedCurrency, currencySuggestions, currencyCache, field.value)}
+                  value={getAutoCompleteValue(selectedCurrency, currencySuggestions, currencyCache, field.value, 'currency')}
                   suggestions={currencySuggestions}
                   field="name"
                   completeMethod={onCurrencyComplete}
@@ -606,7 +606,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
               name="product_id"
               render={({ field }) => (
                 <AutoComplete
-                  value={getAutoCompleteValue(selectedProduct, productSuggestions, productCache, field.value)}
+                  value={getAutoCompleteValue(selectedProduct, productSuggestions, productCache, field.value, 'product')}
                   suggestions={productSuggestions}
                   field="name"
                   completeMethod={onProductComplete}
@@ -653,7 +653,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
               name="trader_id"
               render={({ field }) => (
                 <AutoComplete
-                  value={getAutoCompleteValue(selectedTrader, traderSuggestions, traderCache, field.value)}
+                  value={getAutoCompleteValue(selectedTrader, traderSuggestions, traderCache, field.value, 'trader')}
                   suggestions={traderSuggestions}
                   field="name"
                   completeMethod={onTraderComplete}
@@ -676,7 +676,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
               name="exporter_id"
               render={({ field }) => (
                 <AutoComplete
-                  value={getAutoCompleteValue(selectedExporter, exporterSuggestions, exporterCache, field.value)}
+                  value={getAutoCompleteValue(selectedExporter, exporterSuggestions, exporterCache, field.value, 'exporter')}
                   suggestions={exporterSuggestions}
                   field="name"
                   completeMethod={onExporterComplete}
@@ -699,7 +699,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
               name="shipper_id"
               render={({ field }) => (
                 <AutoComplete
-                  value={getAutoCompleteValue(selectedShipper, shipperSuggestions, shipperCache, field.value)}
+                  value={getAutoCompleteValue(selectedShipper, shipperSuggestions, shipperCache, field.value, 'shipper')}
                   suggestions={shipperSuggestions}
                   field="name"
                   completeMethod={onShipperComplete}
@@ -837,7 +837,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
               name="region_id"
               render={({ field }) => (
                 <AutoComplete
-                  value={getAutoCompleteValue(selectedRegion, regionSuggestions, regionCache, field.value)}
+                  value={getAutoCompleteValue(selectedRegion, regionSuggestions, regionCache, field.value, 'region')}
                   suggestions={regionSuggestions}
                   field="name"
                   completeMethod={onRegionComplete}
@@ -860,7 +860,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
               name="city_id"
               render={({ field }) => (
                 <AutoComplete
-                  value={getAutoCompleteValue(selectedCity, citySuggestions, cityCache, field.value)}
+                  value={getAutoCompleteValue(selectedCity, citySuggestions, cityCache, field.value, 'city')}
                   suggestions={citySuggestions}
                   field="name"
                   completeMethod={onCityComplete}
@@ -883,7 +883,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
               name="operation_type_id"
               render={({ field }) => (
                 <AutoComplete
-                  value={getAutoCompleteValue(selectedOperationType, operationTypeSuggestions, operationTypeCache, field.value)}
+                  value={getAutoCompleteValue(selectedOperationType, operationTypeSuggestions, operationTypeCache, field.value, 'operationType')}
                   suggestions={operationTypeSuggestions}
                   field="name"
                   completeMethod={onOperationTypeComplete}
@@ -906,7 +906,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
               name="cargo_id"
               render={({ field }) => (
                 <AutoComplete
-                  value={getAutoCompleteValue(selectedCargoType, cargoTypeSuggestions, cargoTypeCache, field.value)}
+                  value={getAutoCompleteValue(selectedCargoType, cargoTypeSuggestions, cargoTypeCache, field.value, 'cargoType')}
                   suggestions={cargoTypeSuggestions}
                   field="name"
                   completeMethod={onCargoTypeComplete}
@@ -929,7 +929,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
               name="packing_type_id"
               render={({ field }) => (
                 <AutoComplete
-                  value={getAutoCompleteValue(selectedPackingType, packingTypeSuggestions, packingTypeCache, field.value)}
+                  value={getAutoCompleteValue(selectedPackingType, packingTypeSuggestions, packingTypeCache, field.value, 'packingType')}
                   suggestions={packingTypeSuggestions}
                   field="name"
                   completeMethod={onPackingTypeComplete}

@@ -58,7 +58,7 @@ export default function DatesSitesSection({
   const [departureSiteSuggestions, setDepartureSiteSuggestions] = useState<Site[]>([]);
 
   // helpers using shared utilities
-  const getAutoCompleteValue = (suggestions: Site[], fieldValue: unknown) => resolveAutoCompleteValue<Site>(suggestions, undefined, fieldValue);
+  const getAutoCompleteValue = (suggestions: Site[], fieldValue: unknown) => resolveAutoCompleteValue<Site>(suggestions, undefined, fieldValue, qc, 'site');
   const makeOnChange = (fieldKey: string) => makeAutoCompleteOnChange<Site>({ objectFieldKey: fieldKey, setFormValue: setValue, cacheKey: 'site', qc });
 
 
@@ -98,7 +98,7 @@ export default function DatesSitesSection({
   return (
     <Card>
       <div className="mb-4 text-center">
-        <div className="inline-block px-4 py-1 border border-teal-100 rounded-md bg-teal-50">
+        <div className="inline-block w-full px-4 py-1 border border-teal-100 rounded-md bg-teal-50">
           <h3 className="text-lg font-semibold text-teal-700">{t('service_orders:dates_sites_forecasts') || 'Datas, Locais e Previsões'}</h3>
         </div>
       </div>

@@ -2,7 +2,7 @@ import api from './api';
 import type { ApiPaginatedResponse, CrudService, ListParams } from '../models/apiTypes';
 import type { OperationType } from '../models/OperationType';
 
-const BASE = '/admin/operation-type';
+const BASE = '/inspection/operation-type';
 
 export type OperationTypeFilters = {
   name?: string;

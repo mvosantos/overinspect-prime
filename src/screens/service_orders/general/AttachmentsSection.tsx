@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Card } from 'primereact/card';
 import { FileUpload } from 'primereact/fileupload';
@@ -6,6 +7,7 @@ import { Toast } from 'primereact/toast';
 import { useEffect, useRef, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import serviceOrderService from '../../../services/serviceOrderService';
+import AttachmentService from '../../../services/AttachmentService';
 import type { FileUploadHandlerEvent } from 'primereact/fileupload';
 
 type Attachment = {
@@ -17,14 +19,34 @@ type Attachment = {
 
 type Props = { parentType?: 'service_order' | 'service_operation'; parentId?: string | null; control?: any; setValue?: any; getValues?: any; selectedServiceTypeId?: string | null };
 
-export default function AttachmentsSection({ parentType = 'service_order', parentId, control: pControl, selectedServiceTypeId }: Props) {
+export default function AttachmentsSection({ parentType = 'service_order', parentId, control: pControl, setValue: pSetValue, getValues: pGetValues, selectedServiceTypeId }: Props) {
   const toast = useRef<Toast | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(false);
   const ctx = useFormContext<Record<string, unknown>>();
   const control = pControl ?? ctx.control;
+  const setVal = pSetValue ?? (ctx.setValue as unknown as ((name: string, value: unknown, options?: Record<string, unknown>) => void));
+  const getVal = pGetValues ?? (ctx.getValues as unknown as ((name?: string) => any));
   const watchedServiceTypeId = useWatch({ control, name: 'service_type_id' }) as string | undefined;
   const serviceTypeId = selectedServiceTypeId ?? watchedServiceTypeId;
+
+  // Ensure 'attachments' is registered in the parent form and has a default empty array
+  useEffect(() => {
+    try {
+      if (ctx && typeof (ctx.register as any) === 'function') {
+        // register the field so it's always present in form values
+        (ctx.register as any)('attachments');
+      }
+      const cur = getVal && typeof getVal === 'function' ? getVal('attachments') : undefined;
+      if (cur === undefined && setVal && typeof setVal === 'function') {
+        setVal('attachments', [], { shouldDirty: false });
+      }
+    } catch (e) {
+      // ignore
+    }
+    // run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchAttachments = async () => {
     if (!parentId) return;
@@ -58,11 +80,28 @@ export default function AttachmentsSection({ parentType = 'service_order', paren
     let failed = 0;
     for (const f of files) {
       try {
-        const data = new FormData();
-        data.append('file', f);
-        data.append('parent_type', parentType);
-        data.append('parent_id', parentId);
-        await serviceOrderService.uploadAttachment(data);
+          // presign
+          const presign = await AttachmentService.getPresign((f as File).name, 'service_order');
+          const presignUrl = presign.presign_data?.url;
+          if (!presignUrl) throw new Error('Presign URL missing');
+          await AttachmentService.uploadToPresign(String(presignUrl), f as File);
+          // After successful upload, add the presigned attachment entry into the form values
+          // so create/update will include this attachment in the payload.
+          try {
+            const current = (getVal && typeof getVal === 'function') ? (getVal('attachments') as any[] ?? []) : [];
+            const toAdd = {
+              id: presign.id,
+              filename: presign.filename,
+              name: presign.filename,
+              path: 'service_order',
+            } as Record<string, unknown>;
+            if (setVal && typeof setVal === 'function') {
+              setVal('attachments', [...current, toAdd], { shouldDirty: true, shouldValidate: true });
+            }
+          } catch (e) {
+            // ignore form set errors but continue
+            if (typeof console !== 'undefined' && typeof console.error === 'function') console.error('[AttachmentsSection] setValue attachments error', e);
+          }
         success += 1;
       } catch {
         failed += 1;
@@ -78,6 +117,7 @@ export default function AttachmentsSection({ parentType = 'service_order', paren
 
   const handleDelete = async (id: string) => {
     try {
+      console.log('attachment id:', id);
       await serviceOrderService.deleteAttachment(id);
       toast.current?.show({ severity: 'success', summary: 'Removido', detail: 'Anexo removido' });
       await fetchAttachments();

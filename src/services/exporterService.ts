@@ -2,7 +2,7 @@ import api from './api';
 import type { ApiPaginatedResponse, CrudService, ListParams } from '../models/apiTypes';
 import type { Exporter } from '../models/Exporter';
 
-const BASE = '/admin/exporter';
+const BASE = '/inspection/exporter';
 
 export type ExporterFilters = {
   name?: string;

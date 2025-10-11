@@ -4,6 +4,7 @@ import { InputNumber } from 'primereact/inputnumber';
 import { AutoComplete } from 'primereact/autocomplete';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Controller, useFieldArray, useFormContext, useWatch } from 'react-hook-form';
+import { makeAutoCompleteOnChange, resolveAutoCompleteValue } from '../../../utils/formHelpers';
 import { useState, useEffect } from 'react';
 import serviceService from '../../../services/serviceService';
 import type { Service } from '../../../models/service';
@@ -99,22 +100,11 @@ export default function ServicesSection(props?: Props) {
                 name={`services.${idx}.service_id`}
                 render={({ field }) => (
                   <AutoComplete
-                    value={
-                      (serviceSuggestions.find((s) => s.id === (field.value as unknown as string)) as Service)
-                      ?? (serviceCache[(field.value as unknown as string)] as Service)
-                      ?? (field.value as unknown as Service)
-                    }
+                    value={resolveAutoCompleteValue<Service>(serviceSuggestions, serviceCache, field.value, qc, 'service') as Service | undefined}
                     suggestions={serviceSuggestions}
                     field="name"
                     completeMethod={(e: { query: string }) => onServiceComplete(e.query)}
-                    onChange={(e: { value: unknown }) => {
-                      const val = e.value as unknown;
-                      if (val && typeof val === 'object' && 'id' in val) {
-                        const id = (val as { id: string }).id;
-                        setServiceCache((prev) => ({ ...prev, [id]: val as Service }));
-                        field.onChange(id);
-                      } else field.onChange(val ?? null);
-                    }}
+                    onChange={makeAutoCompleteOnChange<Service>({ setCache: (updater) => setServiceCache((prev) => updater(prev)), cacheKey: 'service', qc, objectFieldKey: `services.${idx}.service` })(field.onChange)}
                     dropdown
                     className="w-full"
                   />

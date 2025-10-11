@@ -51,7 +51,6 @@ export default function SignIn({ theme, setTheme }: SignInProps) {
     },
     onSuccess: () => {
       navigate('/home');
-      console.log('Login bem-sucedido');
     },
     onError: () => {
       console.error('Erro de autenticação');
@@ -178,7 +177,7 @@ export default function SignIn({ theme, setTheme }: SignInProps) {
               severity="secondary"
               outlined
               className="w-full"
-              onClick={() => console.log("Navegar para cadastro")}
+              onClick={() => { /* navigate to signup when feature available */ }}
             />
           </div>
           {/* Footer */}

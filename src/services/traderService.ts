@@ -2,7 +2,7 @@ import api from './api';
 import type { ApiPaginatedResponse, CrudService, ListParams } from '../models/apiTypes';
 import type { Trader } from '../models/Trader';
 
-const BASE = '/admin/trader';
+const BASE = '/inspection/trader';
 
 export type TraderFilters = {
   name?: string;

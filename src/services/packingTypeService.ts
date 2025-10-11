@@ -2,7 +2,7 @@ import api from './api';
 import type { ApiPaginatedResponse, CrudService, ListParams } from '../models/apiTypes';
 import type { PackingType } from '../models/PackingType';
 
-const BASE = '/admin/packing-type';
+const BASE = '/inspection/packing-type';
 
 export type PackingTypeFilters = {
   name?: string;

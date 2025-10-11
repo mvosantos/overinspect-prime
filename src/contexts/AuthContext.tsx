@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const names = res.data.data.map((p) => p.name);
         localStorage.setItem('user_permissions', JSON.stringify(names));
       } catch {
-        console.log('Failed to fetch permissions after login');
+        // ignore permissions fetch failure
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
