@@ -1,20 +1,115 @@
 import BaseService from './BaseService';
+import type { RequestParams } from './BaseService';
 import api from './api';
 import AttachmentService from './AttachmentService';
+import type { ApiPaginatedResponse } from '../models/apiTypes';
+import type { ServiceOrder, ServiceOrderSubmission } from '../models/serviceOrder';
 
 class ServiceOrderService extends BaseService {
   constructor() {
     super('/inspection/service-order');
   }
 
-  async list(params: Record<string, unknown> = {}) {
-    const res = await api.get(this.basePath, { params });
-    return res.data;
+  async list<T>(params?: RequestParams): Promise<ApiPaginatedResponse<T>> {
+    // Delegate to BaseService and normalize items while keeping the generic signature
+    const res = await super.list<T>(params);
+    try {
+      const normalizedData = Array.isArray(res?.data) ? (res.data as unknown[]).map((d) => this.normalizeResponse(d) as unknown as T) : [];
+      return { ...res, data: normalizedData } as ApiPaginatedResponse<T>;
+    } catch {
+      return res;
+    }
   }
 
-  async get(id: string) {
-    const res = await api.get(`${this.basePath}/${id}`);
-    return res.data;
+  async get<T>(id: string | number): Promise<T | null> {
+    // Delegate to BaseService.get to preserve behavior (including 404 -> null)
+    const raw = await super.get<T>(id);
+    if (raw === null || raw === undefined) return null;
+    // normalize and cast to expected generic
+    return this.normalizeResponse(raw as unknown) as unknown as T;
+  }
+
+  // Normalize server response (snake_case) into frontend camelCase ServiceOrder shape
+  normalizeResponse(raw: unknown) {
+    if (!raw || typeof raw !== 'object') return raw;
+    const r = raw as Record<string, unknown>;
+
+    const out: Record<string, unknown> = { ...r };
+
+    // map nested arrays
+    if (Array.isArray(r.service_order_services)) {
+      out.services = (r.service_order_services as unknown[]).map((si) => {
+        const s = si as Record<string, unknown>;
+        return {
+          id: s.id,
+          service_id: s.service_id ?? (s.service && (s.service as Record<string, unknown>).id),
+          service: s.service,
+          unit_price: s.unit_price ?? s.unitPrice,
+          quantity: s.quantity ?? s.qty,
+          total_price: s.total_price ?? s.totalPrice,
+          scope: s.scope,
+          description: s.description,
+          created_at: this.maybeDate(s.created_at),
+          updated_at: this.maybeDate(s.updated_at),
+        };
+      });
+    }
+
+    if (Array.isArray(r.service_order_payments)) {
+      out.payments = (r.service_order_payments as unknown[]).map((p) => {
+        const pp = p as Record<string, unknown>;
+        return {
+          id: pp.id,
+          description: pp.description,
+          document_type_id: pp.document_type_id ?? (pp.document_type && (pp.document_type as Record<string, unknown>).id),
+          document_type: pp.document_type,
+          document_number: pp.document_number ?? pp.documentNumber,
+          unit_price: pp.unit_price ?? pp.unitPrice,
+          quantity: pp.quantity,
+          total_price: pp.total_price ?? pp.totalPrice,
+          created_at: this.maybeDate(pp.created_at),
+          updated_at: this.maybeDate(pp.updated_at),
+        };
+      });
+    }
+
+    if (Array.isArray(r.service_order_schedules)) {
+      out.schedules = (r.service_order_schedules as unknown[]).map((s) => {
+        const ss = s as Record<string, unknown>;
+        return {
+          id: ss.id,
+          user_id: ss.user_id ?? (ss.user && (ss.user as Record<string, unknown>).id),
+          user: ss.user,
+          date: this.maybeDate(ss.date),
+          created_at: this.maybeDate(ss.created_at),
+          updated_at: this.maybeDate(ss.updated_at),
+        };
+      });
+    }
+
+    // attachments
+    if (Array.isArray(r.attachments)) {
+      out.attachments = (r.attachments as unknown[]).map((a) => {
+        const aa = a as Record<string, unknown>;
+        return { ...aa, created_at: this.maybeDate(aa.created_at), updated_at: this.maybeDate(aa.updated_at) };
+      });
+    }
+
+    // convert some date-like scalars
+    ['created_at', 'updated_at', 'deleted_at', 'operation_starts_at', 'operation_finishes_at', 'bl_date', 'cargo_arrival_date', 'report_sent_at', 'invoice_sent_at', 'invoice_payed_at'].forEach((k) => {
+      if (k in r) out[k] = this.maybeDate(r[k]);
+    });
+
+    return out;
+  }
+
+  maybeDate(v: unknown) {
+    if (v instanceof Date) return v;
+    if (typeof v === 'string' || typeof v === 'number') {
+      const d = new Date(v as string);
+      return Number.isNaN(d.getTime()) ? v : d;
+    }
+    return v;
   }
 
   async create(payload: unknown) {
@@ -53,7 +148,17 @@ class ServiceOrderService extends BaseService {
 
     if (typeof console !== 'undefined' && typeof console.info === 'function') console.info('[ServiceOrderService] final create payload attachments:', pl.attachments);
     const res = await api.post(this.basePath, pl);
-    return res.data;
+    try {
+      return this.normalizeResponse(res.data) as unknown;
+    } catch {
+      return res.data;
+    }
+  }
+
+  // Typed wrapper: accept the submission DTO and return a normalized ServiceOrder
+  async createSubmission(payload: ServiceOrderSubmission) {
+    const raw = await this.create(payload as unknown);
+    return this.normalizeResponse(raw as unknown) as unknown as import('../models/serviceOrder').ServiceOrder;
   }
 
   async update(id: string, payload: unknown) {
@@ -96,7 +201,17 @@ class ServiceOrderService extends BaseService {
 
     if (typeof console !== 'undefined' && typeof console.info === 'function') console.info('[ServiceOrderService] final update payload attachments:', pl.attachments);
     const res = await api.put(`${this.basePath}/${id}`, pl);
-    return res.data;
+    try {
+      return this.normalizeResponse(res.data) as unknown;
+    } catch {
+      return res.data;
+    }
+  }
+
+  // Typed wrapper: accept the submission DTO and return a normalized ServiceOrder
+  async updateSubmission(id: string, payload: ServiceOrderSubmission): Promise<ServiceOrder> {
+    const raw = await this.update(id, payload as unknown);
+    return this.normalizeResponse(raw as unknown) as ServiceOrder;
   }
 
   async remove(id: string) {

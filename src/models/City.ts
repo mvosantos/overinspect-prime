@@ -1,4 +1,4 @@
-import { Region } from "./Region";
+import type { Region } from "./Region";
 
 export interface City {
     readonly id: string;

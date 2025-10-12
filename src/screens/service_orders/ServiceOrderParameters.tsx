@@ -46,9 +46,10 @@ export default function ServiceOrderParameters() {
         setLoading(true);
         serviceTypeService.getByServiceTypeId(selectedServiceTypeId)
             .then((res) => {
-                const st = Array.isArray(res) ? (res as unknown[])[0] : (res as unknown);
-                const stObj = st as Record<string, unknown> | undefined;
-                const rawFields = (stObj?.['service_type_fields'] as unknown[]) || [];
+                type ServiceTypeResponse = { service_type_fields?: unknown[] } & Record<string, unknown>;
+                const st = Array.isArray(res) ? (res as ServiceTypeResponse[])[0] : (res as ServiceTypeResponse);
+                const stObj = st as ServiceTypeResponse | undefined;
+                const rawFields = (stObj?.service_type_fields as unknown[]) || [];
                 const f = rawFields.map((fieldRaw) => {
                     const field = fieldRaw as Record<string, unknown>;
                     return {

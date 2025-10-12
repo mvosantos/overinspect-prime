@@ -56,7 +56,7 @@ type Props = {
   register?: UseFormRegister<Record<string, unknown>>;
   control?: Control<Record<string, unknown>>;
   errors?: FieldErrors<Record<string, unknown>>;
-  setValue: UseFormSetValue<Record<string, unknown>>;
+  setValue?: UseFormSetValue<Record<string, unknown>>;
 
 };
 
@@ -305,10 +305,10 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 control={control}
                 name="id"
                 render={({ field }) => (
-                  <InputText
+                    <InputText
                     className="w-full"
                     disabled
-                    value={(field.value as unknown as string) ?? ''}
+                    value={asFormString(field.value)}
                     onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
                   />
                 )}
@@ -420,9 +420,9 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 control={control}
                 name="order_identifier"
                 render={({ field }) => (
-                  <InputText
+                    <InputText
                     className="w-full"
-                    value={(field.value as unknown as string) ?? ''}
+                    value={asFormString(field.value)}
                     onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
                   />
                 )}
@@ -466,10 +466,10 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 control={control}
                 name="number"
                 render={({ field }) => (
-                  <InputText
+                    <InputText
                     className="w-full"
                     disabled
-                    value={(field.value as unknown as string) ?? ''}
+                    value={asFormString(field.value)}
                     onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
                   />
                 )}
@@ -490,9 +490,9 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 control={control}
                 name="ref_number"
                 render={({ field }) => (
-                  <InputText
+                    <InputText
                     className="w-full"
-                    value={(field.value as unknown as string) ?? ''}
+                    value={asFormString(field.value)}
                     onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
                   />
                 )}
@@ -513,9 +513,9 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 control={control}
                 name="client_ref_number"
                 render={({ field }) => (
-                  <InputText
+                    <InputText
                     className="w-full"
-                    value={(field.value as unknown as string) ?? ''}
+                    value={asFormString(field.value)}
                     onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
                   />
                 )}
@@ -536,9 +536,9 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 control={control}
                 name="invoice_number"
                 render={({ field }) => (
-                  <InputText
+                    <InputText
                     className="w-full"
-                    value={(field.value as unknown as string) ?? ''}
+                    value={asFormString(field.value)}
                     onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
                   />
                 )}
@@ -583,9 +583,9 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 control={control}
                 name="client_invoice_number"
                 render={({ field }) => (
-                  <InputText
+                    <InputText
                     className="w-full"
-                    value={(field.value as unknown as string) ?? ''}
+                    value={asFormString(field.value)}
                     onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
                   />
                 )}
@@ -722,9 +722,9 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 control={control}
                 name="vessel_name"
                 render={({ field }) => (
-                  <InputText
+                    <InputText
                     className="w-full"
-                    value={(field.value as unknown as string) ?? ''}
+                    value={asFormString(field.value)}
                     onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
                   />
                 )}
@@ -745,9 +745,9 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 control={control}
                 name="container_number"
                 render={({ field }) => (
-                  <InputText
+                    <InputText
                     className="w-full"
-                    value={(field.value as unknown as string) ?? ''}
+                    value={asFormString(field.value)}
                     onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
                   />
                 )}
@@ -768,9 +768,9 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 control={control}
                 name="booking_number"
                 render={({ field }) => (
-                  <InputText
+                    <InputText
                     className="w-full"
-                    value={(field.value as unknown as string) ?? ''}
+                    value={asFormString(field.value)}
                     onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
                   />
                 )}
@@ -793,7 +793,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 render={({ field }) => (
                   <InputText
                     className="w-full"
-                    value={(field.value as unknown as string) ?? ''}
+                    value={asFormString(field.value)}
                     onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
                   />
                 )}
@@ -816,7 +816,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 render={({ field }) => (
                   <InputText
                     className="w-full"
-                    value={(field.value as unknown as string) ?? ''}
+                    value={asFormString(field.value)}
                     onChange={(e) => field.onChange((e.target as HTMLInputElement).value)}
                   />
                 )}
@@ -956,7 +956,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
               render={({ field }) => (
                 <InputTextarea
                   className="w-full h-[150px]"
-                  value={(field.value as unknown as string) ?? ''}
+                  value={asFormString(field.value)}
                   onChange={(e) => field.onChange((e.target as HTMLTextAreaElement).value)}
                   placeholder="Ex: Container/Caminhão, observações..."
                 />
@@ -986,4 +986,17 @@ function getErrorMessage(errors: Record<string, unknown> | undefined, name: stri
     return typeof m === 'string' ? m : '';
   }
   return '';
+}
+
+// Convert an unknown form field value into a safe string for text inputs.
+function asFormString(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (value instanceof Date) return value.toISOString();
+  try {
+    return String(value);
+  } catch {
+    return '';
+  }
 }

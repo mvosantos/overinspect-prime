@@ -115,7 +115,7 @@ export default function DatesSitesSection({
                 name="operation_starts_at"
                 defaultValue={operationStartsAtField?.default_value}
                 render={({ field }) => (
-                  <Calendar className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
+                  <Calendar showIcon className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
                 )}
               />
               {formErrors.operation_starts_at && <small className="p-error">{formErrors.operation_starts_at}</small>}
@@ -131,7 +131,7 @@ export default function DatesSitesSection({
                 name="bl_date"
                 defaultValue={blDateField?.default_value}
                 render={({ field }) => (
-                  <Calendar className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
+                  <Calendar showIcon className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
                 )}
               />
               {formErrors.bl_date && <small className="p-error">{formErrors.bl_date}</small>}
@@ -147,7 +147,7 @@ export default function DatesSitesSection({
                 name="cargo_arrival_date"
                 defaultValue={cargoArrivalDateField?.default_value}
                 render={({ field }) => (
-                  <Calendar className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
+                  <Calendar showIcon className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
                 )}
               />
               {formErrors.cargo_arrival_date && <small className="p-error">{formErrors.cargo_arrival_date}</small>}
@@ -163,7 +163,7 @@ export default function DatesSitesSection({
                 name="operation_finishes_at"
                 defaultValue={operationFinishesAtField?.default_value}
                 render={({ field }) => (
-                  <Calendar className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
+                  <Calendar showIcon className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
                 )}
               />
               {formErrors.operation_finishes_at && <small className="p-error">{formErrors.operation_finishes_at}</small>}
@@ -179,7 +179,7 @@ export default function DatesSitesSection({
                 name="operation_finish_date"
                 defaultValue={operationFinishDateField?.default_value}
                 render={({ field }) => (
-                  <Calendar className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
+                  <Calendar showIcon className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
                 )}
               />
               {formErrors.operation_finish_date && <small className="p-error">{formErrors.operation_finish_date}</small>}

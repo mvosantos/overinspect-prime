@@ -40,7 +40,7 @@ export type Attachment = {
 };
 
 
-interface ServiceOrderService {
+export interface ServiceOrderService {
   readonly id: string;
   service_id?: string;
   service?: Service;
@@ -54,7 +54,7 @@ interface ServiceOrderService {
   deleted_at?: Date;  
 }
 
-interface PaymentsOrderService {
+export interface PaymentsOrderService {
   readonly id: string;
   description?: string;
   document_type_id?: string;
@@ -68,7 +68,7 @@ interface PaymentsOrderService {
   deleted_at?: Date;
 }
 
-interface SchedulesOrderService {
+export interface SchedulesOrderService {
   readonly id: string;
   user_id: string;
   user?: UserUpdate;
@@ -90,7 +90,7 @@ export interface AttachmentsOrderService {
   deleted_at?: Date;
 }
 
-interface StatusHistoryOrderService {
+export interface StatusHistoryOrderService {
   readonly id: string;
   created_at: Date;
   comment?: string;
@@ -220,4 +220,43 @@ export type ListParams = {
 export type PaginatedResponse<T> = {
   data: T[];
   total: number;
+};
+
+// Submission payload shape used by create/update flows. Use Partial entries for nested arrays
+// Note: submission shape for create/update is constructed in the form module to
+// closely match the runtime form shape. If you need a shared alias, reintroduce
+// it here but ensure it's imported/used to avoid noUnusedLocals errors.
+
+// Small, explicit DTOs for create/update payloads. Keep them compact to avoid
+// deep type instantiation when used as form generics.
+export type FormServiceItemSubmission = {
+  service_id?: string | null;
+  unit_price?: string;
+  quantity?: string;
+  total_price?: string;
+  scope?: string;
+};
+
+export type FormPaymentItemSubmission = {
+  id?: string;
+  description?: string;
+  document_type_id?: string | null;
+  document_number?: string;
+  unit_price?: string;
+  quantity?: string;
+  total_price?: string;
+};
+
+export type FormScheduleItemSubmission = {
+  id?: string;
+  user_id?: string | null;
+  date?: string | Date | null;
+};
+
+export type ServiceOrderSubmission = Record<string, unknown> & {
+  services?: FormServiceItemSubmission[];
+  payments?: FormPaymentItemSubmission[];
+  schedules?: FormScheduleItemSubmission[];
+  attachments?: AttachmentsOrderService[];
+  service_order_status_history?: StatusHistoryOrderService[];
 };

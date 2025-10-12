@@ -3,6 +3,7 @@ import { InputText } from 'primereact/inputtext';
 import { AutoComplete } from 'primereact/autocomplete';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import type { Control, UseFormSetValue, UseFormGetValues } from 'react-hook-form';
+import type { ServiceOrderSubmission } from '../../../models/serviceOrder';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { normalizeListResponse } from '../../../utils/apiHelpers';
@@ -16,19 +17,20 @@ import type { SamplingType } from '../../../models/SamplingType';
 import type { WeighingRule } from '../../../models/WeighingRule';
 import type { Measure } from '../../../models/Measure';
 import { useTranslation } from 'react-i18next';
+import type { ApiPaginatedResponse } from '../../../models/apiTypes';
 
 type FieldMeta = { name: string; visible?: boolean; required?: boolean; default_value?: unknown };
 type Props = {
-  control?: Control<Record<string, unknown>>;
-  setValue?: UseFormSetValue<Record<string, unknown>>;
-  getValues?: UseFormGetValues<Record<string, unknown>>;
+  control?: Control<ServiceOrderSubmission>;
+  setValue?: UseFormSetValue<ServiceOrderSubmission>;
+  getValues?: UseFormGetValues<ServiceOrderSubmission>;
   selectedServiceTypeId?: string | null;
   fieldConfigs?: Record<string, FieldMeta | undefined>;
   formErrors?: Record<string, string | undefined>;
 };
 
 export default function WeighingSection(props?: Props) {
-  const ctx = useFormContext<Record<string, unknown>>();
+  const ctx = useFormContext<ServiceOrderSubmission>();
   const control = props?.control ?? ctx.control;
   // call useWatch unconditionally to preserve hook order; consumers may pass selectedServiceTypeId
   useWatch({ control, name: 'service_type_id' });
@@ -48,7 +50,7 @@ export default function WeighingSection(props?: Props) {
   const [measureCache, setMeasureCache] = useState<Record<string, Measure>>({});
 
   const createComplete = function <T extends { id?: string }>(service: {
-    list: <P extends Record<string, unknown> = Record<string, unknown>>(params?: P) => Promise<import('../../../models/apiTypes').ApiPaginatedResponse<T>>;
+    list: <P extends Record<string, unknown> = Record<string, unknown>>(params?: P) => Promise<ApiPaginatedResponse<T>>;
   }, setSuggestions: (s: T[]) => void, cacheKey: string) {
     return async (e: { query: string }) => {
       const q = e.query;
@@ -190,7 +192,7 @@ export default function WeighingSection(props?: Props) {
         {grossVolumeInvoiceField?.visible && (
           <div>
             <label className="block mb-1">{t('new_service_order:gross_volume_invoice')}{grossVolumeInvoiceField?.required ? ' *' : ''}</label>
-            <Controller control={control} name="gross_volume_invoice" defaultValue={grossVolumeInvoiceField?.default_value} render={({ field }) => <InputText className="w-full" value={(field.value as string) ?? ''} onChange={(e) => field.onChange((e.target as HTMLInputElement).value)} />} />
+            <Controller control={control} name="gross_volume_invoice" defaultValue={grossVolumeInvoiceField?.default_value} render={({ field }) => <InputText className="w-full" value={String(field.value ?? '')} onChange={(e) => field.onChange((e.target as HTMLInputElement).value)} />} />
             {formErrors?.gross_volume_invoice && <small className="p-error">{formErrors.gross_volume_invoice}</small>}
           </div>
         )}
@@ -198,7 +200,7 @@ export default function WeighingSection(props?: Props) {
         {netVolumeInvoiceField?.visible && (
           <div>
             <label className="block mb-1">{t('new_service_order:net_volume_invoice')}{netVolumeInvoiceField?.required ? ' *' : ''}</label>
-            <Controller control={control} name="net_volume_invoice" defaultValue={netVolumeInvoiceField?.default_value} render={({ field }) => <InputText className="w-full" value={(field.value as string) ?? ''} onChange={(e) => field.onChange((e.target as HTMLInputElement).value)} />} />
+            <Controller control={control} name="net_volume_invoice" defaultValue={netVolumeInvoiceField?.default_value} render={({ field }) => <InputText className="w-full" value={String(field.value ?? '')} onChange={(e) => field.onChange((e.target as HTMLInputElement).value)} />} />
             {formErrors?.net_volume_invoice && <small className="p-error">{formErrors.net_volume_invoice}</small>}
           </div>
         )}

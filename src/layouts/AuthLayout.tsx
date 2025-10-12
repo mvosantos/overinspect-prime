@@ -4,6 +4,8 @@ import { useTheme } from '../hooks/useTheme';
 import { PermissionProvider } from '../contexts/PermissionContext';
 import { SaveProvider } from '../contexts/SaveContext';
 
+// Debug console removed from production code
+
 type AuthLayoutProps = {
   children: ReactNode;
 };
@@ -18,6 +20,7 @@ type AuthLayoutProps = {
             <div>
               {children}
             </div>
+            {/* dev DebugConsole removed */}
           </div>
         </SaveProvider>
       </PermissionProvider>

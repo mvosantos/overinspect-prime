@@ -25,3 +25,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </React.StrictMode>,
 );
+
+// Apply compact PrimeReact scaling globally
+try {
+  if (typeof document !== 'undefined' && document?.body && !document.body.classList.contains('prime-compact')) {
+    document.body.classList.add('prime-compact');
+  }
+} catch {
+  // ignore (SSR or test environments)
+}

@@ -9,6 +9,7 @@ import { Toast } from 'primereact/toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import serviceOrderService from '../../services/serviceOrderService';
 import type { ServiceOrder, PaginatedResponse } from '../../models/serviceOrder';
+import { formatShortDate } from '../../utils/dateHelpers';
 import { usePermissions } from '../../contexts/PermissionContext';
 
 export default function ServiceOrderList() {
@@ -106,7 +107,8 @@ export default function ServiceOrderList() {
           <Column field="number" header="Número da OS" sortable />
           <Column field="ref_number" header="Número de referência interno" />
           <Column header="Status" body={(row: ServiceOrder) => row.service_order_status?.name} />
-          <Column field="created_at" header="Data de criação" sortable />
+          <Column header="Tipo de Serviço" body={(row: ServiceOrder) => row.service_type?.name} />
+          <Column header="Data de criação" sortable body={(row: ServiceOrder) => formatShortDate((row as ServiceOrder).created_at)} />
           <Column header="Ações" body={actionBody} style={{ width: '8rem' }} />
         </DataTable>
       </div>

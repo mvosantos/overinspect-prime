@@ -1,32 +1,34 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { AutoComplete } from 'primereact/autocomplete';
 import { InputText } from 'primereact/inputtext';
 import { InputNumber } from 'primereact/inputnumber';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
+import type { Control, UseFormSetValue, UseFormGetValues } from 'react-hook-form';
+import type { ServiceOrderSubmission, FormPaymentItemSubmission } from '../../../models/serviceOrder';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { normalizeListResponse } from '../../../utils/apiHelpers';
 import { makeAutoCompleteOnChange, resolveAutoCompleteValue } from '../../../utils/formHelpers';
 import documentTypeService from '../../../services/documentTypeService';
 import type { DocumentType } from '../../../models/DocumentType';
+import type { PaymentsOrderService } from '../../../models/serviceOrder';
 import { useTranslation } from 'react-i18next';
 
 
-type Payment = { id?: string; description?: string; document_type_id?: string | null; document_type?: DocumentType | undefined; document_number?: string; unit_price?: string; quantity?: string; total_price?: string };
+type Payment = PaymentsOrderService | FormPaymentItemSubmission;
 
-type Props = { control?: any; setValue?: any; getValues?: any; selectedServiceTypeId?: string | null; fieldConfigs?: Record<string, any> | undefined; formErrors?: Record<string, string | undefined> };
+type Props = { control?: Control<ServiceOrderSubmission>; setValue?: UseFormSetValue<ServiceOrderSubmission>; getValues?: UseFormGetValues<ServiceOrderSubmission>; selectedServiceTypeId?: string | null; fieldConfigs?: Record<string, unknown> | undefined; formErrors?: Record<string, string | undefined> };
 
 export default function PaymentsSection(props?: Props) {
-  const ctx = useFormContext<Record<string, unknown>>();
+  const ctx = useFormContext<ServiceOrderSubmission>();
   const control = props?.control ?? ctx.control;
   const setValue = props?.setValue ?? ctx.setValue;
   const getValues = props?.getValues ?? ctx.getValues;
   const { t } = useTranslation(['new_service_order', 'service_orders']);
   const qc = useQueryClient();
 
-  const payments: Payment[] = (useWatch({ control, name: 'payments' }) as Payment[] | undefined) ?? [];
+  const payments: FormPaymentItemSubmission[] = (useWatch({ control, name: 'payments' }) as FormPaymentItemSubmission[] | undefined) ?? [];
   const watchedServiceTypeId = useWatch({ control, name: 'service_type_id' }) as string | undefined;
   const serviceTypeId = props?.selectedServiceTypeId ?? watchedServiceTypeId;
 
@@ -63,11 +65,11 @@ export default function PaymentsSection(props?: Props) {
     const unitNum = parseNumberUniversalLocal(unit);
     const qtyNum = parseNumberUniversalLocal(qty);
     const total = (isNaN(unitNum) ? 0 : unitNum) * (isNaN(qtyNum) ? 0 : qtyNum);
-    setValue?.(`payments.${index}.total_price`, String(total));
+  (setValue as unknown as (name: string, value: unknown) => void)?.(`payments.${index}.total_price`, String(total));
   }
 
   function calcGrandTotal() {
-    const items = getValues?.('payments') as Payment[] | undefined;
+    const items = getValues?.('payments') as FormPaymentItemSubmission[] | undefined;
     const total = (items ?? []).reduce((acc: number, curr: Payment) => {
       const v = parseNumberUniversalLocal(curr.total_price);
       return acc + (isNaN(v) ? 0 : v);
@@ -112,26 +114,26 @@ export default function PaymentsSection(props?: Props) {
             <div className="md:col-span-1">
               <label className="block mb-1">{t('new_service_order:payment_unit_price')}</label>
               <Controller control={control} name={`payments.${idx}.unit_price`} render={({ field }) => (
-                <InputNumber className="w-full" value={field.value ?? null} mode="currency" currency="BRL" locale="pt-BR" onValueChange={(e) => field.onChange(e.value)} onBlur={() => calcLineTotal(idx)} />
+                <InputNumber className="w-full" value={field.value ? Number(String(field.value)) : null} mode="currency" currency="BRL" locale="pt-BR" onValueChange={(e) => field.onChange(e.value ? String(e.value) : '')} onBlur={() => calcLineTotal(idx)} />
               )} />
             </div>
 
             <div className="md:col-span-1">
               <label className="block mb-1">{t('new_service_order:payment_quantity')}</label>
               <Controller control={control} name={`payments.${idx}.quantity`} render={({ field }) => (
-                <InputNumber className="w-full" value={field.value ?? null} mode="decimal" locale="pt-BR" minFractionDigits={2} maxFractionDigits={2} onValueChange={(e) => field.onChange(e.value)} onBlur={() => calcLineTotal(idx)} />
+                <InputNumber className="w-full" value={field.value ? Number(String(field.value)) : null} mode="decimal" locale="pt-BR" minFractionDigits={2} maxFractionDigits={2} onValueChange={(e) => field.onChange(e.value ? String(e.value) : '')} onBlur={() => calcLineTotal(idx)} />
               )} />
             </div>
 
             <div className="md:col-span-1">
               <label className="block mb-1">{t('new_service_order:payment_total_price')}</label>
               <Controller control={control} name={`payments.${idx}.total_price`} render={({ field }) => (
-                <InputNumber className="w-full" value={field.value ?? null} mode="currency" currency="BRL" locale="pt-BR" disabled />
+                <InputNumber className="w-full" value={field.value ? Number(String(field.value)) : null} mode="currency" currency="BRL" locale="pt-BR" disabled />
               )} />
             </div>
 
             <div className="flex gap-2 md:col-span-1">
-              <Button type="button" icon="pi pi-trash" className="p-button-danger" label={t('new_service_order:delete_new_payment')} onClick={() => {
+                <Button type="button" icon="pi pi-trash" className="p-button-danger" label={t('new_service_order:delete_new_payment')} onClick={() => {
                 // mirror ServicesSection delete behavior: remove by index and update form value
                 const next = (payments ?? []).slice();
                 next.splice(idx, 1);
@@ -144,7 +146,7 @@ export default function PaymentsSection(props?: Props) {
         <div className="flex justify-end">  
           {serviceTypeId && (
             <Button type="button" icon="pi pi-plus" className="p-button-text" aria-label={t('new_service_order:add_new_payment')} title={t('new_service_order:add_new_payment')} onClick={() => {
-              const next = [...(payments ?? []), { id: crypto.randomUUID(), description: '', document_type_id: null, document_number: '', unit_price: '', quantity: '', total_price: '' }];
+              const next: FormPaymentItemSubmission[] = [...(payments ?? []), { id: crypto.randomUUID(), description: '', document_type_id: null, document_number: '', unit_price: '', quantity: '', total_price: '' }];
               setValue?.('payments', next);
             }} />
           )}

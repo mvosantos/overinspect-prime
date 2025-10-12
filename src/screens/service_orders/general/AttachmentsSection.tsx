@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// Attachments UI for service orders — tightened typings
 import { Card } from 'primereact/card';
 import { FileUpload } from 'primereact/fileupload';
 import { Button } from 'primereact/button';
@@ -7,43 +6,39 @@ import { Toast } from 'primereact/toast';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFormContext, useWatch } from 'react-hook-form';
+import type { Control, UseFormSetValue, UseFormGetValues } from 'react-hook-form';
+import type { ServiceOrderSubmission, AttachmentsOrderService, ServiceOrder } from '../../../models/serviceOrder';
 import serviceOrderService from '../../../services/serviceOrderService';
 import AttachmentService from '../../../services/AttachmentService';
 import type { FileUploadHandlerEvent } from 'primereact/fileupload';
 
-type Attachment = {
-  id: string;
-  file_name?: string;
-  url?: string;
-  created_at?: string;
-};
-
-type Props = { parentId?: string | null; control?: any; setValue?: any; getValues?: any; selectedServiceTypeId?: string | null };
+type Props = { parentId?: string | null; control?: Control<ServiceOrderSubmission>; setValue?: UseFormSetValue<ServiceOrderSubmission>; getValues?: UseFormGetValues<ServiceOrderSubmission>; selectedServiceTypeId?: string | null };
 
 export default function AttachmentsSection({ parentId, control: pControl, setValue: pSetValue, getValues: pGetValues, selectedServiceTypeId }: Props) {
   const { t } = useTranslation();
   const toast = useRef<Toast | null>(null);
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [attachments, setAttachments] = useState<AttachmentsOrderService[]>([]);
   const [loading, setLoading] = useState(false);
-  const ctx = useFormContext<Record<string, unknown>>();
+  const ctx = useFormContext<ServiceOrderSubmission>();
   const control = pControl ?? ctx.control;
-  const setVal = pSetValue ?? (ctx.setValue as unknown as ((name: string, value: unknown, options?: Record<string, unknown>) => void));
-  const getVal = pGetValues ?? (ctx.getValues as unknown as ((name?: string) => any));
+  const setVal = pSetValue ?? ctx.setValue;
+  const getVal = pGetValues ?? ctx.getValues;
   const watchedServiceTypeId = useWatch({ control, name: 'service_type_id' }) as string | undefined;
   const serviceTypeId = selectedServiceTypeId ?? watchedServiceTypeId;
 
   // Ensure 'attachments' is registered in the parent form and has a default empty array
   useEffect(() => {
-    try {
-      if (ctx && typeof (ctx.register as any) === 'function') {
-        // register the field so it's always present in form values
-        (ctx.register as any)('attachments');
-      }
-      const cur = getVal && typeof getVal === 'function' ? getVal('attachments') : undefined;
-      if (cur === undefined && setVal && typeof setVal === 'function') {
+      try {
+        // ensure the attachments field exists in the form
+        if (typeof ctx.register === 'function') {
+          // register has a typed signature via useFormContext<ServiceOrderSubmission>() so call it directly
+          ctx.register('attachments');
+        }
+      const cur = getVal ? getVal('attachments') : undefined;
+      if (cur === undefined && setVal) {
         setVal('attachments', [], { shouldDirty: false });
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
     // run once on mount
@@ -54,15 +49,12 @@ export default function AttachmentsSection({ parentId, control: pControl, setVal
     if (!parentId) return;
     try {
       setLoading(true);
-      const res = await serviceOrderService.get(parentId);
-      // serviceOrderService.get returns res.data already; parse defensively
-      let items: Attachment[] = [];
-      if (res && typeof res === 'object') {
-        const r = res as Record<string, unknown>;
-        const maybeAttachments = r.attachments ?? (r.data && typeof r.data === 'object' ? (r.data as Record<string, unknown>).attachments : undefined);
-        if (Array.isArray(maybeAttachments)) items = maybeAttachments as Attachment[];
+      const res = await serviceOrderService.get<ServiceOrder | null>(parentId);
+      if (res && typeof res === 'object' && Array.isArray(res.attachments)) {
+        setAttachments(res.attachments ?? []);
+      } else {
+        setAttachments([]);
       }
-      setAttachments(items ?? []);
     } catch {
       // ignore silently but keep attachments empty
     } finally {
@@ -90,13 +82,13 @@ export default function AttachmentsSection({ parentId, control: pControl, setVal
           // After successful upload, add the presigned attachment entry into the form values
           // so create/update will include this attachment in the payload.
           try {
-            const current = (getVal && typeof getVal === 'function') ? (getVal('attachments') as any[] ?? []) : [];
-            const toAdd = {
-              id: presign.id,
+            const current = (getVal && typeof getVal === 'function') ? (getVal('attachments') as AttachmentsOrderService[] ?? []) : [];
+            const toAdd: AttachmentsOrderService = {
+              id: String(presign.id),
               filename: presign.filename,
               name: presign.filename,
               path: 'service_order',
-            } as Record<string, unknown>;
+            } as AttachmentsOrderService;
             if (setVal && typeof setVal === 'function') {
               setVal('attachments', [...current, toAdd], { shouldDirty: true, shouldValidate: true });
             }
@@ -127,13 +119,14 @@ export default function AttachmentsSection({ parentId, control: pControl, setVal
     }
   };
 
-  const handleDownload = (att: Attachment) => {
-    if (!att.url) {
+  const handleDownload = (att: AttachmentsOrderService) => {
+    const url = (att as unknown as Record<string, unknown>).url as string | undefined;
+    if (!url) {
       toast.current?.show({ severity: 'warn', summary: 'Download', detail: 'URL não disponível' });
       return;
     }
     // open in new tab
-    window.open(att.url, '_blank');
+    window.open(url, '_blank');
   };
 
   return (
@@ -162,7 +155,7 @@ export default function AttachmentsSection({ parentId, control: pControl, setVal
           <ul className="space-y-2">
             {attachments.map((a) => (
               <li key={a.id} className="flex items-center justify-between gap-4">
-                <div className="text-sm truncate">{a.file_name ?? `Arquivo ${a.id}`}</div>
+                <div className="text-sm truncate">{a.filename ?? a.name ?? `Arquivo ${a.id}`}</div>
                 <div className="flex items-center gap-2">
                   <Button icon="pi pi-download" className="p-button-text" onClick={() => handleDownload(a)} />
                   <Button icon="pi pi-trash" className="p-button-text p-button-danger" onClick={() => handleDelete(a.id)} />

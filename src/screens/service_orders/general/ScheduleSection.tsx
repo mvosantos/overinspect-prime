@@ -3,6 +3,8 @@ import { Button } from 'primereact/button';
 import { AutoComplete } from 'primereact/autocomplete';
 import { Calendar } from 'primereact/calendar';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
+import type { Control, UseFormSetValue, UseFormGetValues } from 'react-hook-form';
+import type { ServiceOrderSubmission, FormScheduleItemSubmission } from '../../../models/serviceOrder';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import userService from '../../../services/userService';
@@ -11,21 +13,18 @@ import { makeAutoCompleteOnChange, resolveAutoCompleteValue } from '../../../uti
 import type { User } from '../../../models/User';
 import { useTranslation } from 'react-i18next';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-type Schedule = { date: Date | string | null; user_id?: string | null; user?: User | undefined };
-
-type Props = { control?: any; setValue?: any; getValues?: any; selectedServiceTypeId?: string | null };
+type Props = { control?: Control<ServiceOrderSubmission>; setValue?: UseFormSetValue<ServiceOrderSubmission>; getValues?: UseFormGetValues<ServiceOrderSubmission>; selectedServiceTypeId?: string | null };
 
 export default function ScheduleSection(props?: Props) {
   // this section expects to be used inside a parent FormProvider
-  const ctx = useFormContext<Record<string, unknown>>();
+  const ctx = useFormContext<ServiceOrderSubmission>();
   const control = props?.control ?? ctx.control;
   const setValue = props?.setValue ?? ctx.setValue;
   const { t } = useTranslation(['new_service_order', 'service_orders']);
   const qc = useQueryClient();
 
   // watch schedules array from parent form
-  const schedules = (useWatch({ control, name: 'schedules' }) as Schedule[] | undefined) ?? [];
+  const schedules = (useWatch({ control, name: 'schedules' }) as FormScheduleItemSubmission[] | undefined) ?? [];
 
   // only allow adding schedules after a service type has been chosen
   const watchedServiceTypeId = useWatch({ control, name: 'service_type_id' }) as string | undefined;
@@ -56,7 +55,7 @@ export default function ScheduleSection(props?: Props) {
             <div className="md:col-span-2">
               <label className="block mb-1">{t('new_service_order:inspection_date')}</label>
               <Controller control={control} name={`schedules.${idx}.date`} render={({ field }) => (
-                <Calendar className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
+                <Calendar showIcon className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
               )} />
             </div>
 
@@ -87,7 +86,7 @@ export default function ScheduleSection(props?: Props) {
 
         <div className="flex justify-end">
           {serviceTypeId && (
-            <Button type="button" icon="pi pi-plus" className="p-button-text" aria-label={t('new_service_order:add_schedule')} title={t('new_service_order:add_schedule')} onClick={() => setValue('schedules', [...schedules, { date: null, user_id: null, user: undefined }])} />
+            <Button type="button" icon="pi pi-plus" className="p-button-text" aria-label={t('new_service_order:add_schedule')} title={t('new_service_order:add_schedule')} onClick={() => setValue('schedules', [...schedules, { date: null, user_id: null } as FormScheduleItemSubmission])} />
           )}
         </div>
       </div>
