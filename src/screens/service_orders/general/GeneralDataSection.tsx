@@ -57,13 +57,17 @@ type Props = {
   control?: Control<Record<string, unknown>>;
   errors?: FieldErrors<Record<string, unknown>>;
   setValue?: UseFormSetValue<Record<string, unknown>>;
+  // new prop: accept raw serviceTypeFields array so sections can compute mappings
+  serviceTypeFields?: FieldMeta[];
+  // keep legacy fieldConfigs for backward compatibility
+  fieldConfigs?: Record<string, FieldMeta | undefined>;
 
 };
 
 // explicit calendar change event type for primereact Calendar
 type CalendarChangeEvent = { value?: Date | Date[] | null };
 
-export default function GeneralDataSection({ serviceTypeId, fields = [], register, control, errors = {} }: Props) {
+export default function GeneralDataSection({ serviceTypeId, fields = [], register, control, errors = {}, fieldConfigs = {}, serviceTypeFields = [] }: Props) {
   const { t } = useTranslation('new_service_order');
   const [subsSuggestions, setSubsSuggestions] = useState<Subsidiary[]>([]);
   const [businessUnitSuggestions, setBusinessUnitSuggestions] = useState<BusinessUnit[]>([]);
@@ -268,7 +272,19 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
 
   const onBusinessUnitComplete = createAutoCompleteHandler(businessUnitService, setBusinessUnitSuggestions, setBusinessUnitCache, 'businessUnit');
 
-  const metaFor = (name: string) => fields.find((f) => f.name === name) as FieldMeta | undefined;
+  // Build a lookup by name from provided serviceTypeFields for fast mapping
+  const byNameFromServiceType: Record<string, FieldMeta | undefined> = {};
+  (serviceTypeFields || []).forEach((f: FieldMeta | undefined) => { if (f && typeof f === 'object' && 'name' in f) byNameFromServiceType[f.name] = f; });
+
+  const metaFor = (name: string) => {
+    // prefer explicit fieldConfigs when provided by parent (legacy)
+    const fromConfigs = (fieldConfigs as Record<string, FieldMeta | undefined>)[name];
+    if (fromConfigs) return fromConfigs;
+    // then prefer serviceTypeFields lookup
+    if (byNameFromServiceType[name]) return byNameFromServiceType[name];
+    // fall back to searching fields array
+    return fields.find((ff) => ff.name === name) as FieldMeta | undefined;
+  };
   const showIfVisible = (name: string) => !!(metaFor(name) && metaFor(name)?.visible === true);
   const isRequired = (name: string) => !!(metaFor(name) && metaFor(name)?.required === true);
 
@@ -290,7 +306,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
     <Card>
       <div className="mb-4 text-center">
         <div className="inline-block w-full px-4 py-1 border border-teal-100 rounded-md bg-teal-50">
-          <h3 className="text-lg font-semibold text-teal-700">Dados Gerais</h3>
+          <h3 className="text-lg font-semibold text-teal-700">{t('service_orders:general_data').toUpperCase()}</h3>
         </div>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
@@ -323,18 +339,21 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
         {/* Nomination date */}
         {showIfVisible('nomination_date') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:nomination_date")}</label>
+            <label className="block mb-1">{t("new_service_order:nomination_date")} {isRequired('nomination_date') ? '*' : ''}</label>
             <Controller
               control={control}
               name="nomination_date"
               render={({ field }) => (
                 <Calendar
                   className="w-full"
+                  showIcon
                   value={field.value as Date | undefined}
                   onChange={(e: CalendarChangeEvent) => field.onChange(e?.value ?? null)}
+                  dateFormat="dd/mm/yy"
                 />
               )}
             />
+            {errors && errors['nomination_date'] && <small className="p-error">{getErrorMessage(errors, 'nomination_date')}</small>}
           </div>
         )}
 

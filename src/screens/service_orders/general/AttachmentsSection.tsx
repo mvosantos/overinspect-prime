@@ -12,9 +12,9 @@ import serviceOrderService from '../../../services/serviceOrderService';
 import AttachmentService from '../../../services/AttachmentService';
 import type { FileUploadHandlerEvent } from 'primereact/fileupload';
 
-type Props = { parentId?: string | null; control?: Control<ServiceOrderSubmission>; setValue?: UseFormSetValue<ServiceOrderSubmission>; getValues?: UseFormGetValues<ServiceOrderSubmission>; selectedServiceTypeId?: string | null };
+type Props = { parentId?: string | null; control?: Control<ServiceOrderSubmission>; setValue?: UseFormSetValue<ServiceOrderSubmission>; getValues?: UseFormGetValues<ServiceOrderSubmission>; selectedServiceTypeId?: string | null; allowModify?: boolean };
 
-export default function AttachmentsSection({ parentId, control: pControl, setValue: pSetValue, getValues: pGetValues, selectedServiceTypeId }: Props) {
+export default function AttachmentsSection({ parentId, control: pControl, setValue: pSetValue, getValues: pGetValues, selectedServiceTypeId, allowModify = true }: Props) {
   const { t } = useTranslation();
   const toast = useRef<Toast | null>(null);
   const [attachments, setAttachments] = useState<AttachmentsOrderService[]>([]);
@@ -110,6 +110,10 @@ export default function AttachmentsSection({ parentId, control: pControl, setVal
   };
 
   const handleDelete = async (id: string) => {
+    if (!allowModify) {
+      toast.current?.show({ severity: 'warn', summary: 'Ação proibida', detail: 'Exclusão de anexos não está permitida neste status.' });
+      return;
+    }
     try {
       await serviceOrderService.deleteAttachment(id);
       toast.current?.show({ severity: 'success', summary: 'Removido', detail: 'Anexo removido' });
@@ -140,7 +144,7 @@ export default function AttachmentsSection({ parentId, control: pControl, setVal
 
 
       {serviceTypeId ? (
-  <FileUpload name="attachments" customUpload uploadHandler={customUpload} multiple accept="*" auto={true} chooseLabel={t('new_service_order:add_new_attachment')} />
+  (allowModify ? <FileUpload name="attachments" customUpload uploadHandler={customUpload} multiple accept="*" auto={true} chooseLabel={t('new_service_order:add_new_attachment')} /> : <div className="text-sm text-muted">Uploads desabilitados para o status atual.</div>)
       ) : (
         <div className="text-sm text-muted">Escolha o tipo de serviço para habilitar o upload de anexos.</div>
       )}
@@ -158,7 +162,7 @@ export default function AttachmentsSection({ parentId, control: pControl, setVal
                 <div className="text-sm truncate">{a.filename ?? a.name ?? `Arquivo ${a.id}`}</div>
                 <div className="flex items-center gap-2">
                   <Button icon="pi pi-download" className="p-button-text" onClick={() => handleDownload(a)} />
-                  <Button icon="pi pi-trash" className="p-button-text p-button-danger" onClick={() => handleDelete(a.id)} />
+                  {allowModify ? <Button icon="pi pi-trash" className="p-button-text p-button-danger" onClick={() => handleDelete(a.id)} /> : null}
                 </div>
               </li>
             ))}

@@ -16,6 +16,7 @@ export function buildZodSchemaFromFields(fields: ServiceTypeFieldRaw[]): { schem
   // helper to build a schema for a single field
   const makeSchemaForField = (f: ServiceTypeFieldRaw): { key: string; schema?: z.ZodTypeAny; defaultProvided?: boolean } => {
     const key = f.name;
+    const effectiveRequired = Boolean(f.required);
     const typeHint = String(f.field_type ?? 'string').toLowerCase();
     let schema: z.ZodTypeAny;
 
@@ -28,7 +29,7 @@ export function buildZodSchemaFromFields(fields: ServiceTypeFieldRaw[]): { schem
         if (v === '' || v == null) return undefined;
         const parsed = typeof v === 'number' ? v : Number(String(v));
         return Number.isNaN(parsed) ? undefined : parsed;
-      }, f.required ? z.number() : z.number().optional());
+      }, effectiveRequired ? z.number() : z.number().optional());
     } else if (isBool) {
       schema = z.preprocess((v) => {
         if (v === '' || v == null) return undefined;
@@ -37,17 +38,23 @@ export function buildZodSchemaFromFields(fields: ServiceTypeFieldRaw[]): { schem
         if (s === 'true' || s === '1') return true;
         if (s === 'false' || s === '0') return false;
         return Boolean(v);
-      }, f.required ? z.boolean() : z.boolean().optional());
+      }, effectiveRequired ? z.boolean() : z.boolean().optional());
     } else if (isDate) {
       schema = z.preprocess((v) => {
         if (!v) return undefined;
         const d = v instanceof Date ? v : new Date(String(v));
         return Number.isNaN(d.getTime()) ? undefined : d;
-      }, f.required ? z.date() : z.date().optional());
+      }, effectiveRequired ? z.date() : z.date().optional());
     } else {
       // accept numbers, objects and nulls for string-like fields by coercing to string
+      // NOTE: treat only null/undefined as absent so that empty strings are still
+      // validated by z.string().min(1) when the field is required. Previously
+      // empty string was converted to undefined by the preprocessor which made
+      // zod report 'expected string, received undefined' instead of a clearer
+      // min-length error.
       schema = z.preprocess((v) => {
-        if (v === '' || v == null || v === undefined) return undefined;
+        if (v == null) return undefined;
+        if (v === '') return '';
         if (typeof v === 'string') return v;
         // For objects that have a `name` or `id`, prefer `name` if present
         if (typeof v === 'object') {
@@ -57,10 +64,10 @@ export function buildZodSchemaFromFields(fields: ServiceTypeFieldRaw[]): { schem
         }
         // fallback: stringify numbers/booleans/others
         return String(v);
-      }, f.required ? z.string().min(1, `${f.label ?? key} é obrigatório`) : z.string().optional());
+      }, effectiveRequired ? z.string().min(1, `${f.label ?? key} é obrigatório`) : z.string().optional());
     }
 
-    if (f.required && (isNumeric || isBool || isDate)) {
+    if (effectiveRequired && (isNumeric || isBool || isDate)) {
       schema = schema.refine((v) => v !== undefined && v !== null, { message: `${f.label ?? key} é obrigatório` });
     }
 
@@ -71,6 +78,14 @@ export function buildZodSchemaFromFields(fields: ServiceTypeFieldRaw[]): { schem
   // top-level fields (those without a dot) are processed into the root shape
   const nestedByPrefix: Record<string, ServiceTypeFieldRaw[]> = {};
   for (const f of fields) {
+    // The attachments area is handled separately by AttachmentsSection and
+    // should NOT be included in the dynamic zod/schema rules. Skip any
+    // service type field that belongs to the attachments area or table.
+    // At runtime the field objects may include `area` or `table` properties
+    // even if the TS type doesn't list them, so check both.
+    const runtimeArea = (f as unknown as Record<string, unknown>)?.area as string | undefined;
+    const runtimeTable = (f as unknown as Record<string, unknown>)?.table as string | undefined;
+    if (runtimeArea === 'attachments' || runtimeTable === 'attachments') continue;
     if (!f.visible) continue;
     // support legacy/alternate naming conventions where nested collection
     // fields are sent using prefixes like `service_foo` or `payment_bar`.
@@ -96,6 +111,25 @@ export function buildZodSchemaFromFields(fields: ServiceTypeFieldRaw[]): { schem
     const { key, schema, defaultProvided } = makeSchemaForField(f);
     if (schema) shape[key] = schema;
     if (defaultProvided) defaults[key] = f.default_value as unknown;
+  }
+
+  // Special-case mapping: some service type configurations use a top-level
+  // `service_description` field name that should affect the payments
+  // line-item `description`. If present and visible, map it into the
+  // payments nestedByPrefix so the generated payments[].description schema
+  // will reflect the same `required`/`default_value` metadata.
+  try {
+    const svcDesc = fields.find((ff) => ff && typeof ff === 'object' && ff.name === 'service_description');
+    if (svcDesc && (svcDesc as ServiceTypeFieldRaw).visible) {
+      const already = (nestedByPrefix['payments'] ?? []).some((pf) => (pf.name.endsWith('.description') || pf.name === 'payments.description'));
+      if (!already) {
+        nestedByPrefix['payments'] = nestedByPrefix['payments'] ?? [];
+        // create a synthetic payments.description entry using svcDesc metadata
+        nestedByPrefix['payments'].push({ ...(svcDesc as ServiceTypeFieldRaw), name: 'payments.description' });
+      }
+    }
+  } catch {
+    // ignore any mapping errors
   }
 
   // handle payments[] nested schema if present

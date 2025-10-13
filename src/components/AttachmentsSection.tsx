@@ -24,9 +24,10 @@ type Props = {
   name?: string; // form field name (default: 'attachments')
   path?: string; // path used for presign (default: 'service_order')
   allowPreview?: boolean;
+  showUpload?: boolean;
 };
 
-export default function AttachmentsSection({ name = 'attachments', path = 'service_order' }: Props) {
+export default function AttachmentsSection({ name = 'attachments', path = 'service_order', showUpload = true }: Props) {
   const ctx = useFormContext();
   const toast = React.useRef<Toast | null>(null);
   const { control, getValues } = ctx;
@@ -240,6 +241,8 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
   }, [previewUrl, previewName]);
 
   const handleRemove = useCallback(async (index: number) => {
+    // prevent removal when uploads/attachments are disabled by status meta
+    if (!showUpload) return;
     const file = getValues(name)[index] as AttachmentsOrderService;
     if (!file) return;
     try {
@@ -255,19 +258,23 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
     } catch (e) {
       if (typeof console !== 'undefined' && typeof console.error === 'function') console.error('delete attachment error', e);
     }
-  }, [getValues, name, remove]);
+  }, [getValues, name, remove, showUpload]);
 
   return (
     <div>
       <Toast ref={toast} />
       <div className="mb-3">
         <div className="flex items-center gap-4">
-          <FileUpload ref={fileUploadRef} name={`${name}_uploader`} customUpload uploadHandler={handleFileSelect} multiple accept="*" auto={true} disabled={uploadingCount > 0} />
-          {uploadingCount > 0 && (
-            <div className="flex items-center gap-2">
-              <ProgressSpinner style={{ width: '24px', height: '24px' }} />
-              <div className="text-sm">Enviando {uploadingCount} arquivo(s)...</div>
-            </div>
+          {showUpload && (
+            <>
+              <FileUpload ref={fileUploadRef} name={`${name}_uploader`} customUpload uploadHandler={handleFileSelect} multiple accept="*" auto={true} disabled={uploadingCount > 0} />
+              {uploadingCount > 0 && (
+                <div className="flex items-center gap-2">
+                  <ProgressSpinner style={{ width: '24px', height: '24px' }} />
+                  <div className="text-sm">Enviando {uploadingCount} arquivo(s)...</div>
+                </div>
+              )}
+            </>
           )}
           {previewLoading && (
             <div className="flex items-center gap-2">
@@ -294,7 +301,9 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
                   )}
                   <Button icon="pi pi-eye" className="p-button-text" onClick={() => handlePreview(f as any, idx)} disabled={previewLoading} />
                   <Button icon="pi pi-download" className="p-button-text" onClick={() => handleDownload(f as any, idx)} />
-                  <Button icon="pi pi-trash" className="p-button-text p-button-danger" onClick={() => handleRemove(idx)} />
+                  {showUpload ? (
+                    <Button icon="pi pi-trash" className="p-button-text p-button-danger" onClick={() => handleRemove(idx)} />
+                  ) : null}
                 </div>
               </li>
             ))}

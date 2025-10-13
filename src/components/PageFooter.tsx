@@ -19,15 +19,17 @@ type Props = {
   label?: string;
   currentOrderId?: string | null;
   currentStatusId?: string | null;
+  onStatusMetaChange?: (meta: { enable_attach?: boolean | null; enable_editing?: boolean | null } | null) => void;
 };
 
-export default function PageFooter({ onSaveClick, label = 'Salvar', currentOrderId = null, currentStatusId = null }: Props) {
+export default function PageFooter({ onSaveClick, label = 'Salvar', currentOrderId = null, currentStatusId = null, onStatusMetaChange }: Props) {
   const { theme } = useTheme();
   const save = useSave();
   const toast = useRef<Toast | null>(null);
 
   const [statusOptions, setStatusOptions] = useState<Array<{ label: string; value: string }>>([]);
   const [fetchedTargets, setFetchedTargets] = useState<Target[]>([]);
+  const [statusMeta, setStatusMeta] = useState<{ enable_attach?: boolean | null; enable_editing?: boolean | null } | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [comment, setComment] = useState<string>('');
   const [modalVisible, setModalVisible] = useState(false);
@@ -65,9 +67,29 @@ export default function PageFooter({ onSaveClick, label = 'Salvar', currentOrder
           setStatusOptions([]);
           return;
         }
-  const data = await serviceOrderStatusService.get(statusIdToUse);
+        const data = await serviceOrderStatusService.get(statusIdToUse);
   if (!mounted) return;
   const fetched = Array.isArray((data as unknown as Record<string, unknown>)?.service_order_status_targets) ? (data as unknown as Record<string, unknown>).service_order_status_targets as Target[] : [];
+        // extract top-level status meta (enable_attach / enable_editing) if present
+        try {
+          const dm = data as Record<string, unknown> | null;
+          const enableAttach = dm && 'enable_attach' in dm ? (dm?.enable_attach as boolean | undefined) : undefined;
+          const enableEditing = dm && 'enable_editing' in dm ? (dm?.enable_editing as boolean | undefined) : undefined;
+          const metaObj = { enable_attach: enableAttach ?? null, enable_editing: enableEditing ?? null } as { enable_attach?: boolean | null; enable_editing?: boolean | null };
+          // only update state/callback when values actually change to avoid
+          // causing repeated re-renders/remounts elsewhere (TabView/carendar issues)
+          const prev = statusMeta;
+          const changed = !prev || prev.enable_attach !== metaObj.enable_attach || prev.enable_editing !== metaObj.enable_editing;
+          if (changed) {
+            setStatusMeta(metaObj);
+            if (typeof onStatusMetaChange === 'function') onStatusMetaChange(metaObj);
+          }
+        } catch {
+          if (statusMeta !== null) {
+            setStatusMeta(null);
+            if (typeof onStatusMetaChange === 'function') onStatusMetaChange(null);
+          }
+        }
   setFetchedTargets(fetched);
         const opts = fetched.map((t) => {
           const ts = (t as Record<string, unknown>).target_status as Record<string, unknown> | undefined;
@@ -77,13 +99,14 @@ export default function PageFooter({ onSaveClick, label = 'Salvar', currentOrder
       } catch {
         setFetchedTargets([]);
         setStatusOptions([]);
+        setStatusMeta(null);
       } finally {
         if (mounted) setLoadingTargets(false);
       }
     };
     void load();
     return () => { mounted = false; };
-  }, [currentStatusId, currentOrderId]);
+  }, [currentStatusId, currentOrderId, onStatusMetaChange, statusMeta]);
 
   // when user selects a status, open modal asking for comment
   useEffect(() => {
@@ -135,10 +158,17 @@ export default function PageFooter({ onSaveClick, label = 'Salvar', currentOrder
 
   const handleSaveStatus = async () => {
     if (!currentOrderId || !selectedStatus) return;
+    // If comment is required for the selected target, enforce it and notify the user
+    if (requiresComment && comment.trim().length === 0) {
+      toast.current?.show({ severity: 'warn', summary: 'Comentário obrigatório', detail: 'Este status exige um comentário. Por favor, adicione um comentário antes de salvar.' });
+      return;
+    }
     await mutation.mutateAsync({ orderId: currentOrderId, statusId: selectedStatus, commentText: comment });
   };
 
   const showStatusDropdown = Boolean(currentOrderId && statusOptions.length > 0);
+  // Show save button only when top-level enable_editing is explicitly true
+  const showSaveButton = statusMeta?.enable_editing === true;
 
   return (
     <>
@@ -150,10 +180,12 @@ export default function PageFooter({ onSaveClick, label = 'Salvar', currentOrder
           )}
         </div>
         <div>
-          <button type="button" className={`p-button p-component p-button-primary ${meta.isSubmitting ? 'p-disabled' : ''}`} onClick={handleClick} disabled={isDisabled}>
-            {meta.isSubmitting ? <i className="pi pi-spin pi-spinner" /> : <i className="pi pi-save" />}
-            <span className="ml-2">{label}</span>
-          </button>
+          {showSaveButton && (
+            <button type="button" className={`p-button p-component p-button-primary ${meta.isSubmitting ? 'p-disabled' : ''}`} onClick={handleClick} disabled={isDisabled}>
+              {meta.isSubmitting ? <i className="pi pi-spin pi-spinner" /> : <i className="pi pi-save" />}
+              <span className="ml-2">{label}</span>
+            </button>
+          )}
         </div>
       </div>
 

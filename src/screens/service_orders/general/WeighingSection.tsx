@@ -25,7 +25,7 @@ type Props = {
   setValue?: UseFormSetValue<ServiceOrderSubmission>;
   getValues?: UseFormGetValues<ServiceOrderSubmission>;
   selectedServiceTypeId?: string | null;
-  fieldConfigs?: Record<string, FieldMeta | undefined>;
+  serviceTypeFields?: FieldMeta[] | undefined;
   formErrors?: Record<string, string | undefined>;
 };
 
@@ -34,8 +34,26 @@ export default function WeighingSection(props?: Props) {
   const control = props?.control ?? ctx.control;
   // call useWatch unconditionally to preserve hook order; consumers may pass selectedServiceTypeId
   useWatch({ control, name: 'service_type_id' });
-  const fieldConfigs = props?.fieldConfigs ?? {};
+  const serviceTypeFieldsLocal = props?.serviceTypeFields ?? [];
   const formErrors = props?.formErrors ?? {};
+  const byNameLocal: Record<string, FieldMeta | undefined> = {};
+  (serviceTypeFieldsLocal || []).forEach((f) => { if (f && typeof f === 'object' && 'name' in f) byNameLocal[f.name] = f; });
+
+  const WEIGHING_FIELD_NAMES: Record<string, string> = {
+    weightTypeField: 'weight_type_id',
+    samplingTypeIdField: 'sampling_type_id',
+    weighingRuleField: 'weighing_rule_id',
+    invoiceMetricUnitField: 'invoice_metric_unit_id',
+    grossVolumeInvoiceField: 'gross_volume_invoice',
+    netVolumeInvoiceField: 'net_volume_invoice',
+    tareVolumeInvoiceField: 'tare_volume_invoice',
+    landingMetricUnitField: 'landing_metric_unit_id',
+    grossVolumeLandedField: 'gross_volume_landed',
+    netVolumeLandedField: 'net_volume_landed',
+    tareVolumeLandedField: 'tare_volume_landed',
+  };
+
+  const fieldConfigs = Object.fromEntries(Object.entries(WEIGHING_FIELD_NAMES).map(([k, svcName]) => [k, byNameLocal[svcName]])) as Record<string, FieldMeta | undefined>;
   const { t } = useTranslation(['new_service_order', 'service_orders']);
   const qc = useQueryClient();
 
@@ -64,35 +82,43 @@ export default function WeighingSection(props?: Props) {
       }
     };
   };
-    // destructure expected field config keys for this section
-    const {
-      weightTypeField,
-      samplingTypeIdField,
-      weighingRuleField,
-      invoiceMetricUnitField,
-      grossVolumeInvoiceField,
-      netVolumeInvoiceField,
-      tareVolumeInvoiceField,
-      landingMetricUnitField,
-    } = fieldConfigs as Record<string, FieldMeta | undefined>;
+  // destructure expected field config keys for this section
+  const {
+    weightTypeField,
+    samplingTypeIdField,
+    weighingRuleField,
+    invoiceMetricUnitField,
+    grossVolumeInvoiceField,
+    netVolumeInvoiceField,
+    tareVolumeInvoiceField,
+    landingMetricUnitField,
+    grossVolumeLandedField,
+    netVolumeLandedField,
+    tareVolumeLandedField,
+  } = fieldConfigs as Record<string, FieldMeta | undefined>;
 
-    const hasVisibleFields =
-      weightTypeField?.visible ||
-      samplingTypeIdField?.visible ||
-      weighingRuleField?.visible ||
-      invoiceMetricUnitField?.visible ||
-      grossVolumeInvoiceField?.visible ||
-      netVolumeInvoiceField?.visible ||
-      tareVolumeInvoiceField?.visible ||
-      landingMetricUnitField?.visible;
+  const hasVisibleFields =
+    weightTypeField?.visible ||
+    samplingTypeIdField?.visible ||
+    weighingRuleField?.visible ||
+    invoiceMetricUnitField?.visible ||
+    grossVolumeInvoiceField?.visible ||
+    netVolumeInvoiceField?.visible ||
+    tareVolumeInvoiceField?.visible ||
+    landingMetricUnitField?.visible;
 
-    if (!hasVisibleFields) return null;
+  // include landed fields in overall visibility
+  const hasLanded = grossVolumeLandedField?.visible || netVolumeLandedField?.visible || tareVolumeLandedField?.visible;
 
-    return (
+  const overallHasVisible = hasVisibleFields || hasLanded;
+
+  if (!overallHasVisible) return null;
+
+  return (
     <Card>
       <div className="mb-4 text-center">
         <div className="inline-block w-full px-4 py-1 border border-teal-100 rounded-md bg-teal-50">
-          <h3 className="text-lg font-semibold text-teal-700">{t('service_orders:weighing_sampling_details')}</h3>
+          <h3 className="text-lg font-semibold text-teal-700">{t('service_orders:weighing_sampling_details').toUpperCase()}</h3>
         </div>
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -225,6 +251,38 @@ export default function WeighingSection(props?: Props) {
               )}
             />
             {formErrors?.landing_metric_unit_id && <small className="p-error">{formErrors.landing_metric_unit_id}</small>}
+          </div>
+        )}
+
+        {grossVolumeLandedField?.visible && (
+          <div>
+            <label className="block mb-1">{t('new_service_order:gross_volume_landed')}{grossVolumeLandedField?.required ? ' *' : ''}</label>
+            <Controller
+              control={control}
+              name="gross_volume_landed"
+              defaultValue={grossVolumeLandedField?.default_value}
+              render={({ field }) =>
+                <InputText className="w-full"
+                  value={String(field.value ?? '')}
+                  onChange={(e) => field.onChange((e.target as HTMLInputElement).value)} />}
+            />
+            {formErrors?.gross_volume_landed && <small className="p-error">{formErrors.gross_volume_landed}</small>}
+          </div>
+        )}
+
+        {netVolumeLandedField?.visible && (
+          <div>
+            <label className="block mb-1">{t('new_service_order:net_volume_landed')}{netVolumeLandedField?.required ? ' *' : ''}</label>
+            <Controller control={control} name="net_volume_landed" defaultValue={netVolumeLandedField?.default_value} render={({ field }) => <InputText className="w-full" value={String(field.value ?? '')} onChange={(e) => field.onChange((e.target as HTMLInputElement).value)} />} />
+            {formErrors?.net_volume_landed && <small className="p-error">{formErrors.net_volume_landed}</small>}
+          </div>
+        )}
+
+        {tareVolumeLandedField?.visible && (
+          <div>
+            <label className="block mb-1">{t('new_service_order:tare_volume_landed')}{tareVolumeLandedField?.required ? ' *' : ''}</label>
+            <Controller control={control} name="tare_volume_landed" defaultValue={tareVolumeLandedField?.default_value} render={({ field }) => <InputText className="w-full" value={String(field.value ?? '')} onChange={(e) => field.onChange((e.target as HTMLInputElement).value)} />} />
+            {formErrors?.tare_volume_landed && <small className="p-error">{formErrors.tare_volume_landed}</small>}
           </div>
         )}
 

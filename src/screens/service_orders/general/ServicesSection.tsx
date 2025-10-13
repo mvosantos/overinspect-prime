@@ -11,15 +11,22 @@ import { useTranslation } from 'react-i18next';
 import serviceService from '../../../services/serviceService';
 import type { Service } from '../../../models/service';
 import type { ServiceOrderService } from '../../../models/serviceOrder';
+import type { ServiceOrder } from '../../../models/serviceOrder';
 import { useQueryClient } from '@tanstack/react-query';
 import { normalizeListResponse } from '../../../utils/apiHelpers';
+import { mapServicesSourceToForm } from '../../../utils/formSeedHelpers';
 
 // Props are optional; component will use form context when not provided
+type FieldMeta = { name: string; visible?: boolean; required?: boolean; default_value?: unknown };
+
 type Props = {
   control?: Control<ServiceOrderSubmission>;
   setValue?: UseFormSetValue<ServiceOrderSubmission>;
   getValues?: UseFormGetValues<ServiceOrderSubmission>;
   selectedServiceTypeId?: string | null;
+  serviceTypeFields?: FieldMeta[] | undefined;
+  // optional raw source from server when editing (array of service_order_services)
+  svcSource?: ServiceOrderService[] | undefined;
 };
 
 export default function ServicesSection(props?: Props) {
@@ -36,6 +43,21 @@ export default function ServicesSection(props?: Props) {
   // call useWatch unconditionally to satisfy hooks rules
   const watchedServiceTypeId = useWatch({ control, name: 'service_type_id' }) as string | undefined;
   const serviceTypeId = props?.selectedServiceTypeId ?? watchedServiceTypeId;
+  // build local lookup from provided serviceTypeFields (if any)
+  const serviceTypeFieldsLocal = props?.serviceTypeFields ?? [];
+  const byNameLocal: Record<string, FieldMeta | undefined> = {};
+  (serviceTypeFieldsLocal || []).forEach((f) => { if (f && typeof f === 'object' && 'name' in f) byNameLocal[f.name] = f as FieldMeta; });
+
+  const SERVICES_FIELD_NAMES: Record<string, string> = {
+    serviceField: 'service_id',
+    unitPriceField: 'service_unit_price',
+    quantityField: 'service_quantity',
+    totalPriceField: 'service_total_price',
+    scopeField: 'service_scope    ',
+  };
+
+  const fieldConfigs = Object.fromEntries(Object.entries(SERVICES_FIELD_NAMES).map(([k, svcName]) => [k, byNameLocal[svcName]])) as Record<string, FieldMeta | undefined>;
+  const { serviceField, unitPriceField, quantityField, totalPriceField, scopeField } = fieldConfigs;
   // strongly type the field array to expect `services` as an array of FormServiceItemSubmission
   type RHFServiceFields = { services?: FormServiceItemSubmission[] };
   // control is typed as Control<ServiceOrderSubmission>; narrow it for useFieldArray
@@ -89,6 +111,22 @@ export default function ServicesSection(props?: Props) {
 
   const addRow = () => append({ service_id: null, unit_price: '0.00', quantity: '1', total_price: '0.00', scope: '' } as FormServiceItemSubmission);
 
+  // If the parent provided a raw svcSource (from server) and the form has no
+  // services yet, pre-seed the form values so edit-mode reflects server data.
+  // We do not overwrite existing user edits.
+  useEffect(() => {
+    try {
+      if (!props?.svcSource || !Array.isArray(props.svcSource)) return;
+      const existing = getValues('services') as FormServiceItemSubmission[] | undefined;
+      if (Array.isArray(existing) && existing.length > 0) return;
+      const fromServer = mapServicesSourceToForm(props.svcSource as ServiceOrder['services']);
+      setValue?.('services', fromServer);
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // local parser (handles '.' as thousand and ',' as decimal)
   const parseNumberUniversalLocal = (v?: string | number | null) => {
     if (v === null || v === undefined) return NaN;
@@ -107,11 +145,20 @@ export default function ServicesSection(props?: Props) {
     return total;
   }
 
+  const hasVisibleFields =
+    serviceField?.visible ||
+    unitPriceField?.visible ||
+    quantityField?.visible ||
+    totalPriceField?.visible ||
+    scopeField?.visible;
+
+  if (!hasVisibleFields) return null;
+
   return (
     <Card>
       <div className="mb-4 text-center">
         <div className="inline-block w-full px-4 py-1 border border-teal-100 rounded-md bg-teal-50">
-          <h3 className="text-lg font-semibold text-teal-700">Serviços a serem realizados</h3>
+          <h3 className="text-lg font-semibold text-teal-700">{t('service_orders:service_to_be_performed').toUpperCase()}</h3>
         </div>
       </div>
 
@@ -123,8 +170,9 @@ export default function ServicesSection(props?: Props) {
       <div className="mt-4 space-y-3">
         {fields.map((f, idx) => (
           <div key={f.id} className="grid items-end grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+            {serviceField?.visible !== false && (
             <div>
-              <label className="block mb-1">Serviço</label>
+              <label className="block mb-1">Serviço{serviceField?.required ? ' *' : ''}</label>
               <Controller
                 control={control}
                 name={`services.${idx}.service_id`}
@@ -133,6 +181,8 @@ export default function ServicesSection(props?: Props) {
                     value={resolveAutoCompleteValue<Service>(serviceSuggestions, serviceCache, field.value, qc, 'service') as Service | undefined}
                     suggestions={serviceSuggestions}
                     field="name"
+                    aria-required={Boolean(serviceField?.required)}
+                    placeholder={serviceTypeId ? 'Comece a digitar...' : 'Escolha o tipo de serviço primeiro'}
                     completeMethod={(e: { query: string }) => onServiceComplete(e.query)}
                     onChange={makeAutoCompleteOnChange<Service>({ setCache: (updater) => setServiceCache((prev) => updater(prev)), cacheKey: 'service', qc, objectFieldKey: `services.${idx}.service` })(field.onChange)}
                     dropdown
@@ -141,9 +191,11 @@ export default function ServicesSection(props?: Props) {
                 )}
               />
             </div>
+            )}
 
+            {unitPriceField?.visible !== false && (
             <div>
-              <label className="block mb-1">Valor unitário</label>
+              <label className="block mb-1">Valor unitário{unitPriceField?.required ? ' *' : ''}</label>
               <Controller
                 control={control}
                 name={`services.${idx}.unit_price`}
@@ -157,6 +209,7 @@ export default function ServicesSection(props?: Props) {
                       const q = Number(getValues(`services.${idx}.quantity`) ?? 0);
                       setServiceField(idx, 'total_price', (unit * q).toFixed(2));
                     }}
+                    aria-required={Boolean(unitPriceField?.required)}
                     mode="currency"
                     currency="BRL"
                     locale="pt-BR"
@@ -165,9 +218,11 @@ export default function ServicesSection(props?: Props) {
                 )}
               />
             </div>
+            )}
 
+            {quantityField?.visible !== false && (
             <div>
-              <label className="block mb-1">Quantidade</label>
+              <label className="block mb-1">Quantidade{quantityField?.required ? ' *' : ''}</label>
               <Controller
                 control={control}
                 name={`services.${idx}.quantity`}
@@ -181,7 +236,7 @@ export default function ServicesSection(props?: Props) {
                       const unit = Number(getValues(`services.${idx}.unit_price`) ?? 0);
                       setServiceField(idx, 'total_price', (unit * q).toFixed(2));
                     }}
-                    showButtons
+                    aria-required={Boolean(quantityField?.required)}
                     min={0}
                     step={1}
                     mode="decimal"
@@ -189,9 +244,11 @@ export default function ServicesSection(props?: Props) {
                 )}
               />
             </div>
+            )}
 
+            {totalPriceField?.visible !== false && (
             <div>
-              <label className="block mb-1">Total</label>
+              <label className="block mb-1">Total{totalPriceField?.required ? ' *' : ''}</label>
               <Controller
                 control={control}
                 name={`services.${idx}.total_price`}
@@ -200,6 +257,7 @@ export default function ServicesSection(props?: Props) {
                 )}
               />
             </div>
+            )}
 
             <div className="flex justify-end gap-2 col-span-full">
               <Button icon="pi pi-trash" className="p-button-text p-button-danger" onClick={() => remove(idx)} />
