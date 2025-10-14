@@ -22,6 +22,7 @@ import { makeAutoCompleteOnChange, resolveAutoCompleteValue } from '../../../uti
 type Props = {
   currentOrderId?: string | null;
   selectedServiceTypeId?: string | null;
+  fieldConfigs?: Record<string, { name: string; visible?: boolean; required?: boolean; default_value?: unknown } | undefined>;
 };
 
 const ItemSchema = z.object({
@@ -32,7 +33,7 @@ const ItemSchema = z.object({
   service_order_status: z.any().optional(),
 });
 
-export default function GoodsSection({ currentOrderId }: Props) {
+export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
   const qc = useQueryClient();
   const toast = useRef<Toast | null>(null);
 
@@ -69,6 +70,9 @@ export default function GoodsSection({ currentOrderId }: Props) {
   const items = useMemo(() => ((data && Array.isArray((data as any).data)) ? (data as any).data : []), [data]);
   const total = useMemo(() => ((data && typeof (data as any).total === 'number') ? (data as any).total : 0), [data]);
 
+  // destructure expected field config keys for this section
+  const goodsVesselLoadingPortField = fieldConfigs ? fieldConfigs['goods_vessel_loading_port_id'] : undefined;
+
   // helper to open/close all (defined after items so it can reference them)
   const collapseAll = useCallback(() => setActiveIndexes(null), []);
   const expandAll = useCallback(() => {
@@ -78,7 +82,10 @@ export default function GoodsSection({ currentOrderId }: Props) {
 
   // inner component for each item (existing or new)
   function GoodItemForm({ item, isNew }: { item?: any; isNew?: boolean }) {
-    const defaultVals: any = { ...(item ?? {}), attachments: (item && Array.isArray(item.attachments)) ? item.attachments : [], loading_port_id: item?.loading_port_id ?? null };
+    const loadingPortFieldName = goodsVesselLoadingPortField?.name ?? 'loading_port_id';
+    const defaultVals: any = { ...(item ?? {}), attachments: (item && Array.isArray(item.attachments)) ? item.attachments : [] };
+    // ensure the named field is populated: prefer existing item value, then field default_value, then null
+    defaultVals[loadingPortFieldName] = item?.loading_port_id ?? (goodsVesselLoadingPortField?.default_value ?? null);
     // also expose parent service_order_status into this form so AttachmentsSection can read enable flags
     const form = useForm<any>({ resolver: zodResolver(ItemSchema), defaultValues: { ...defaultVals, service_order_status: parentStatus } as any });
     const { handleSubmit, control, setValue } = form;
@@ -86,7 +93,16 @@ export default function GoodsSection({ currentOrderId }: Props) {
     // Site autocomplete helpers
   const [siteSuggestions, setSiteSuggestions] = useState<any[]>([]);
   const [siteCache, setSiteCache] = useState<Record<string, any>>({});
-  const createSiteComplete = createAutocompleteComplete<any>({ listFn: siteService.list, qc, cacheKeyRoot: 'site', setSuggestions: setSiteSuggestions, setCache: (updater) => setSiteCache((prev) => updater(prev)), per_page: 20, filterKey: 'name' });
+  const [siteSuggestError, setSiteSuggestError] = useState<string | null>(null);
+    const createSiteComplete = async (e: { query: string }) => {
+      try {
+        setSiteSuggestError(null);
+        await createAutocompleteComplete<any>({ listFn: siteService.list, qc, cacheKeyRoot: 'site', setSuggestions: setSiteSuggestions, setCache: (updater) => setSiteCache((prev) => updater(prev)), per_page: 20, filterKey: 'name' })(e);
+      } catch {
+        setSiteSuggestions([]);
+        setSiteSuggestError('Falha ao carregar sugestões');
+      }
+    };
 
     // If this item already contains the full loading_port object (from server),
     // seed the local cache and react-query cache so AutoComplete shows the name
@@ -107,7 +123,15 @@ export default function GoodsSection({ currentOrderId }: Props) {
 
     const onSave = handleSubmit(async (vals) => {
       try {
-        const payload = { ...vals, service_order_id: currentOrderId } as any;
+        // map named form fields back to API-expected keys
+        const payload: any = { ...vals };
+        // ensure loading_port_id exists in payload for API
+        if (loadingPortFieldName !== 'loading_port_id') {
+          payload.loading_port_id = vals[loadingPortFieldName] ?? null;
+          // avoid sending the custom-named field to API
+          delete payload[loadingPortFieldName];
+        }
+        payload.service_order_id = currentOrderId;
         // ensure attachments node present
         if (!payload.attachments) payload.attachments = [];
         if (isNew) {
@@ -118,7 +142,28 @@ export default function GoodsSection({ currentOrderId }: Props) {
           await updateMutation.mutateAsync({ id: item.id, payload });
           toast.current?.show({ severity: 'success', summary: 'Atualizado', detail: `Registro atualizado` });
         }
-      } catch {
+      } catch (err: any) {
+          // try to map server-side field errors into the form
+          try {
+            const body = err?.response?.data ?? err?.data ?? null;
+            if (body && typeof body === 'object') {
+              // common Laravel style: { errors: { field: ['msg'] } }
+              const errors = (body.errors ?? body) as Record<string, any>;
+              if (errors && typeof errors === 'object') {
+                Object.entries(errors).forEach(([k, v]) => {
+                  const message = Array.isArray(v) ? String(v[0]) : String(v);
+                  // map API field name to configured form field name
+                  if (k === 'loading_port_id') {
+                    try { form.setError(loadingPortFieldName, { type: 'server', message }); } catch { /* ignore */ }
+                  } else {
+                    try { form.setError(k, { type: 'server', message }); } catch { /* ignore */ }
+                  }
+                });
+              }
+            }
+          } catch {
+            // ignore mapping errors
+          }
           toast.current?.show({ severity: 'error', summary: 'Erro', detail: 'Falha ao salvar' });
         }
     });
@@ -136,26 +181,36 @@ export default function GoodsSection({ currentOrderId }: Props) {
     // When parent status changes, keep the hidden field in sync so AttachmentsSection reads it
     useEffect(() => {
       try { setValue('service_order_status', parentStatus as any); } catch { /* ignore */ }
+      // parentStatus comes from the parent form context and isn't a stable React dependency
+      // so we intentionally only depend on setValue to avoid false lint warnings.
     }, [setValue]);
 
     return (
       <FormProvider {...form}>
         <div className="p-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <div className="md:col-span-2">
-              <label className="block mb-1">Porto de embarque</label>
-              <Controller control={control} name="loading_port_id" render={({ field }) => (
-                <AutoComplete
-                  value={resolveAutoCompleteValue<any>(siteSuggestions, siteCache, field.value, qc, 'site') as any}
-                  suggestions={siteSuggestions}
-                  field="name"
-                  completeMethod={createSiteComplete}
-                  onChange={makeAutoCompleteOnChange<any>({ setCache: (updater) => setSiteCache((prev) => updater(prev)), cacheKey: 'site', qc })(field.onChange)}
-                  dropdown
-                  className="w-full"
-                />
-              )} />
-            </div>
+            {goodsVesselLoadingPortField?.visible !== false && (
+              <div className="md:col-span-2">
+                <label className="block mb-1">Porto de embarque{goodsVesselLoadingPortField?.required ? ' *' : ''}</label>
+                <Controller control={control} name={loadingPortFieldName} render={({ field }) => (
+                  <AutoComplete
+                    value={resolveAutoCompleteValue<any>(siteSuggestions, siteCache, field.value, qc, 'site') as any}
+                    suggestions={siteSuggestions}
+                    field="name"
+                    completeMethod={createSiteComplete}
+                    onChange={makeAutoCompleteOnChange<any>({ setCache: (updater) => setSiteCache((prev) => updater(prev)), cacheKey: 'site', qc })(field.onChange)}
+                    dropdown
+                    className="w-full"
+                    defaultValue={goodsVesselLoadingPortField?.default_value as any}
+                    
+                    />
+                )} />
+                {((form.formState && (form.formState.errors as Record<string, any>)) || {})[loadingPortFieldName]?.message && (
+                  <small className="p-error">{((form.formState && (form.formState.errors as Record<string, any>)) || {})[loadingPortFieldName].message}</small>
+                )}
+                {siteSuggestError && <small className="p-error">{siteSuggestError}</small>}
+              </div>
+            )}
             <div className="flex items-end justify-end gap-2 md:col-span-2">
               <div className="flex gap-2">
                 <Button label="Salvar" icon="pi pi-save" onClick={onSave} disabled={!parentEnableEditing} />

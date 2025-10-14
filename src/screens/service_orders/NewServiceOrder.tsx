@@ -1057,8 +1057,14 @@ export default function NewServiceOrder() {
                   const cfg = OPERATION_SECTIONS[selectedServiceTypeId as string];
                   if (!cfg) return <div>Operações: Nenhuma section configurada para este tipo de serviço</div>;
                     switch (cfg.key) {
-                    case 'goods':
-                      return <GoodsSection currentOrderId={currentOrderId} />;
+                    case 'goods': {
+                      const byName: Record<string, ServiceTypeField | undefined> = {};
+                      (serviceTypeFields || []).forEach((f) => { if (f && typeof f === 'object' && 'name' in f) byName[f.name] = f; });
+                      const goodsFieldConfigs = {
+                        goods_vessel_loading_port_id: byName['goods_vessel_loading_port_id'],
+                      } as Record<string, FieldMetaLocal | undefined>;
+                      return <GoodsSection currentOrderId={currentOrderId} fieldConfigs={goodsFieldConfigs} />;
+                    }
                     case 'tallies':
                       return <TalliesSection currentOrderId={currentOrderId} selectedServiceTypeId={selectedServiceTypeId} />;
                     default:
