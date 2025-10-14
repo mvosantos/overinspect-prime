@@ -704,7 +704,37 @@ export default function NewServiceOrder() {
                     );
                   })()
                 }
-                <WeighingSection control={control} setValue={setValue} getValues={getValues} selectedServiceTypeId={selectedServiceTypeId} />
+                {
+                  (() => {
+                    const byName: Record<string, ServiceTypeField | undefined> = {};
+                    (serviceTypeFields || []).forEach((f) => { if (f && typeof f === 'object' && 'name' in f) byName[f.name] = f; });
+                    const weighingFieldConfigs = {
+                      weightTypeField: byName['weight_type_id'],
+                      samplingTypeIdField: byName['sampling_type_id'],
+                      weighingRuleField: byName['weighing_rule_id'],
+                      invoiceMetricUnitField: byName['invoice_metric_unit_id'],
+                      grossVolumeInvoiceField: byName['gross_volume_invoice'],
+                      netVolumeInvoiceField: byName['net_volume_invoice'],
+                      tareVolumeInvoiceField: byName['tare_volume_invoice'],
+                      landingMetricUnitField: byName['landing_metric_unit_id'],
+                    } as Record<string, FieldMetaLocal | undefined>;
+
+                    const formErrorsMap: Record<string, string | undefined> = {};
+                    Object.entries(formState.errors || {}).forEach(([k, v]) => {
+                      const vv = v as unknown;
+                      if (vv && typeof vv === 'object' && 'message' in (vv as Record<string, unknown>)) {
+                        const m = (vv as Record<string, unknown>).message;
+                        formErrorsMap[k] = typeof m === 'string' ? m : undefined;
+                      } else {
+                        formErrorsMap[k] = undefined;
+                      }
+                    });
+
+                    return (
+                      <WeighingSection control={control} setValue={setValue} getValues={getValues} selectedServiceTypeId={selectedServiceTypeId} fieldConfigs={weighingFieldConfigs} formErrors={formErrorsMap} />
+                    );
+                  })()
+                }
                 <AttachmentsSection name="attachments" path="service_order" />
               </div>
             </TabPanel>
