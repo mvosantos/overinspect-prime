@@ -3,16 +3,16 @@ import { InputText } from 'primereact/inputtext';
 import { AutoComplete } from 'primereact/autocomplete';
 import { InputNumber } from 'primereact/inputnumber';
 import { useState } from 'react';
-import type { Dispatch, SetStateAction } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { normalizeListResponse } from '../../../utils/apiHelpers';
+import { createAutocompleteComplete } from '../../../utils/autocompleteHelpers';
 import { makeAutoCompleteOnChange, resolveAutoCompleteValue } from '../../../utils/formHelpers';
 import { useWatch } from 'react-hook-form';
 import subsidiaryService from '../../../services/subsidiaryService';
 import type { Subsidiary } from '../../../models/subsidiary';
 import { Controller } from 'react-hook-form';
 import type { UseFormRegister, FieldErrors, Control, UseFormSetValue } from 'react-hook-form';
-import type { CrudService } from '../../../models/apiTypes';
+// import type { CrudService } from '../../../models/apiTypes';
 import { Calendar } from 'primereact/calendar';
 import { useTranslation } from 'react-i18next';
 import type { BusinessUnit } from '../../../models/businessUnit';
@@ -41,14 +41,8 @@ import cargoTypeService from '../../../services/cargoTypeService';
 import type { PackingType } from '../../../models/PackingType';
 import packingTypeService from '../../../services/packingTypeService';
 
-type FieldMeta = {
-  name: string;
-  label?: string;
-  default_value?: unknown;
-  visible?: boolean;
-  required?: boolean;
-  field_type?: string | null;
-};
+import type { FieldMeta } from '../../../utils/formSectionHelpers';
+import { showIfVisible as _showIfVisible, isRequired as _isRequired, getErrorMessage as _getErrorMessage } from '../../../utils/formSectionHelpers';
 
 type Props = {
   serviceTypeId?: string | null;
@@ -201,47 +195,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
     staleTime: 1000 * 60 * 5 
   });
 
-  // AutoComplete methods for each entity (typed)
-  function createAutoCompleteHandler<T extends { id?: string }>(
-    service: CrudService<T>,
-    setSuggestions: Dispatch<SetStateAction<T[]>>,
-    setCache: Dispatch<SetStateAction<Record<string, T>>>,
-    cacheKey: string,
-  ) {
-    return async (event: { query: string }) => {
-      const q = event.query;
-      try {
-  const res = await service.list({ per_page: 20, filters: { name: q } });
-        const items = normalizeListResponse<T>(res);
-        setSuggestions(items ?? []);
-        const map: Record<string, T> = {};
-        (items ?? []).forEach((it) => {
-          if (it?.id) {
-            map[it.id as string] = it as T;
-            qc.setQueryData([cacheKey, it.id], it);
-          }
-        });
-        setCache((prev) => ({ ...prev, ...map }));
-      } catch {
-        setSuggestions([]);
-      }
-    };
-  }
-
-  // using shared normalizeListResponse imported from utils
-
-  const onSubsComplete = createAutoCompleteHandler(subsidiaryService, setSubsSuggestions, setSubsCache, 'subsidiary');
-  // business unit uses the generic createAutoCompleteHandler
-  const onClientComplete = createAutoCompleteHandler(clientService, setClientSuggestions, setClientCache, 'client');
-  const onCurrencyComplete = createAutoCompleteHandler(currencyService, setCurrencySuggestions, setCurrencyCache, 'currency');
-  const onTraderComplete = createAutoCompleteHandler(traderService, setTraderSuggestions, setTraderCache, 'trader');
-  const onExporterComplete = createAutoCompleteHandler(exporterService, setExporterSuggestions, setExporterCache, 'exporter');
-  const onShipperComplete = createAutoCompleteHandler(shipperService, setShipperSuggestions, setShipperCache, 'shipper');
-  const onProductComplete = createAutoCompleteHandler(productService, setProductSuggestions, setProductCache, 'product');
-  const onRegionComplete = createAutoCompleteHandler(regionService, setRegionSuggestions, setRegionCache, 'region');
-  const onOperationTypeComplete = createAutoCompleteHandler(operationTypeService, setOperationTypeSuggestions, setOperationTypeCache, 'operationType');
-  const onCargoTypeComplete = createAutoCompleteHandler(cargoTypeService, setCargoTypeSuggestions, setCargoTypeCache, 'cargoType');
-  const onPackingTypeComplete = createAutoCompleteHandler(packingTypeService, setPackingTypeSuggestions, setPackingTypeCache, 'packingType');
+  // AutoComplete methods for each entity (typed) using shared helper
+  const onSubsComplete = createAutocompleteComplete<Subsidiary>({ listFn: subsidiaryService.list, qc, cacheKeyRoot: 'subsidiary', setSuggestions: setSubsSuggestions, setCache: (updater) => setSubsCache((prev) => updater(prev)), per_page: 20, filterKey: 'name' });
+  const onClientComplete = createAutocompleteComplete<Client>({ listFn: clientService.list, qc, cacheKeyRoot: 'client', setSuggestions: setClientSuggestions, setCache: (updater) => setClientCache((prev) => updater(prev)), per_page: 20, filterKey: 'name' });
+  const onCurrencyComplete = createAutocompleteComplete<Currency>({ listFn: currencyService.list, qc, cacheKeyRoot: 'currency', setSuggestions: setCurrencySuggestions, setCache: (updater) => setCurrencyCache((prev) => updater(prev)), per_page: 20, filterKey: 'name' });
+  const onTraderComplete = createAutocompleteComplete<Trader>({ listFn: traderService.list, qc, cacheKeyRoot: 'trader', setSuggestions: setTraderSuggestions, setCache: (updater) => setTraderCache((prev) => updater(prev)), per_page: 20, filterKey: 'name' });
+  const onExporterComplete = createAutocompleteComplete<Exporter>({ listFn: exporterService.list, qc, cacheKeyRoot: 'exporter', setSuggestions: setExporterSuggestions, setCache: (updater) => setExporterCache((prev) => updater(prev)), per_page: 20, filterKey: 'name' });
+  const onShipperComplete = createAutocompleteComplete<Shipper>({ listFn: shipperService.list, qc, cacheKeyRoot: 'shipper', setSuggestions: setShipperSuggestions, setCache: (updater) => setShipperCache((prev) => updater(prev)), per_page: 20, filterKey: 'name' });
+  const onProductComplete = createAutocompleteComplete<Product>({ listFn: productService.list, qc, cacheKeyRoot: 'product', setSuggestions: setProductSuggestions, setCache: (updater) => setProductCache((prev) => updater(prev)), per_page: 20, filterKey: 'name' });
+  const onRegionComplete = createAutocompleteComplete<Region>({ listFn: regionService.list, qc, cacheKeyRoot: 'region', setSuggestions: setRegionSuggestions, setCache: (updater) => setRegionCache((prev) => updater(prev)), per_page: 20, filterKey: 'name' });
+  const onOperationTypeComplete = createAutocompleteComplete<OperationType>({ listFn: operationTypeService.list, qc, cacheKeyRoot: 'operationType', setSuggestions: setOperationTypeSuggestions, setCache: (updater) => setOperationTypeCache((prev) => updater(prev)), per_page: 20, filterKey: 'name' });
+  const onCargoTypeComplete = createAutocompleteComplete<CargoType>({ listFn: cargoTypeService.list, qc, cacheKeyRoot: 'cargoType', setSuggestions: setCargoTypeSuggestions, setCache: (updater) => setCargoTypeCache((prev) => updater(prev)), per_page: 20, filterKey: 'name' });
+  const onPackingTypeComplete = createAutocompleteComplete<PackingType>({ listFn: packingTypeService.list, qc, cacheKeyRoot: 'packingType', setSuggestions: setPackingTypeSuggestions, setCache: (updater) => setPackingTypeCache((prev) => updater(prev)), per_page: 20, filterKey: 'name' });
 
   // Special handler for cities with region dependency
   const onCityComplete = async (event: { query: string }) => {
@@ -266,11 +231,10 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
     }
   };
 
-  const onBusinessUnitComplete = createAutoCompleteHandler(businessUnitService, setBusinessUnitSuggestions, setBusinessUnitCache, 'businessUnit');
+  const onBusinessUnitComplete = createAutocompleteComplete<BusinessUnit>({ listFn: businessUnitService.list, qc, cacheKeyRoot: 'businessUnit', setSuggestions: setBusinessUnitSuggestions, setCache: (updater) => setBusinessUnitCache((prev) => updater(prev)), per_page: 20, filterKey: 'name' });
 
-  const metaFor = (name: string) => fields.find((f) => f.name === name) as FieldMeta | undefined;
-  const showIfVisible = (name: string) => !!(metaFor(name) && metaFor(name)?.visible === true);
-  const isRequired = (name: string) => !!(metaFor(name) && metaFor(name)?.required === true);
+  const showIfVisible = _showIfVisible(fields);
+  const isRequired = _isRequired(fields);
 
   // Helper: preserve precedence for an explicitly selected item, then delegate to shared resolver
   const getAutoCompleteValue = <T extends { id?: string }>(selectedData: T | undefined | null, suggestions: T[], cache: Record<string, T> | undefined, fieldValue: unknown, cacheKey?: string) => {
@@ -316,7 +280,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
             ) : (
               <InputText className="w-full" disabled {...(register ? register('id') : {})} />
             )}
-            {errors && errors['id'] && <small className="p-error">{getErrorMessage(errors, 'id')}</small>}
+            {errors && errors['id'] && <small className="p-error">{_getErrorMessage(errors as Record<string, unknown>, 'id')}</small>}
           </div>
         )}
 
@@ -357,7 +321,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 />
               )}
             />
-            {errors && errors['subsidiary_id'] && <small className="p-error">{getErrorMessage(errors, 'subsidiary_id')}</small>}
+            {errors && errors['subsidiary_id'] && <small className="p-error">{_getErrorMessage(errors as Record<string, unknown>, 'subsidiary_id')}</small>}
           </div>
         )}
 
@@ -382,7 +346,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 />
               )}
             />
-            {errors && errors['business_unit_id'] && <small className="p-error">{getErrorMessage(errors, 'business_unit_id')}</small>}
+            {errors && errors['business_unit_id'] && <small className="p-error">{_getErrorMessage(errors as Record<string, unknown>, 'business_unit_id')}</small>}
           </div>
         )}
 
@@ -407,7 +371,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 />
               )}
             />
-            {errors && errors['client_id'] && <small className="p-error">{getErrorMessage(errors, 'client_id')}</small>}
+            {errors && errors['client_id'] && <small className="p-error">{_getErrorMessage(errors as Record<string, unknown>, 'client_id')}</small>}
           </div>
         )}
 
@@ -430,7 +394,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
             ) : (
               <InputText className="w-full" {...(register ? register('order_identifier') : {})} />
             )}
-            {errors && errors['order_identifier'] && <small className="p-error">{getErrorMessage(errors, 'order_identifier')}</small>}
+            {errors && errors['order_identifier'] && <small className="p-error">{_getErrorMessage(errors as Record<string, unknown>, 'order_identifier')}</small>}
           </div>
         )}
 

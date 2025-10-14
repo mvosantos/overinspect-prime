@@ -6,13 +6,14 @@ import { Controller, useFieldArray, useFormContext, useWatch } from 'react-hook-
 import type { Control, UseFormSetValue, UseFormGetValues } from 'react-hook-form';
 import type { FormServiceItemSubmission, ServiceOrderSubmission } from '../../../models/serviceOrder';
 import { makeAutoCompleteOnChange, resolveAutoCompleteValue } from '../../../utils/formHelpers';
+import { createAutocompleteComplete } from '../../../utils/autocompleteHelpers';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import serviceService from '../../../services/serviceService';
 import type { Service } from '../../../models/service';
 import type { ServiceOrderService } from '../../../models/serviceOrder';
 import { useQueryClient } from '@tanstack/react-query';
-import { normalizeListResponse } from '../../../utils/apiHelpers';
+// normalizeListResponse removed; using createAutocompleteComplete helper
 
 // Props are optional; component will use form context when not provided
 type Props = {
@@ -74,35 +75,15 @@ export default function ServicesSection(props?: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const onServiceComplete = async (query: string) => {
-    try {
-      const res = await serviceService.list({ per_page: 20, filters: { name: query } });
-      const items = normalizeListResponse<Service>(res);
-      setServiceSuggestions(items ?? []);
-      const map: Record<string, Service> = {};
-      (items ?? []).forEach((it) => { if (it?.id) { map[it.id] = it; qc.setQueryData(['service', it.id], it); } });
-      setServiceCache((prev) => ({ ...prev, ...map }));
-    } catch {
-      setServiceSuggestions([]);
-    }
-  };
+  const onServiceComplete = createAutocompleteComplete<Service>({ listFn: serviceService.list, qc, cacheKeyRoot: 'service', setSuggestions: setServiceSuggestions, setCache: (updater) => setServiceCache((prev) => updater(prev)), per_page: 20, filterKey: 'name' });
 
-  const addRow = () => append({ service_id: null, unit_price: '0.00', quantity: '1', total_price: '0.00', scope: '' } as FormServiceItemSubmission);
-
-  // local parser (handles '.' as thousand and ',' as decimal)
-  const parseNumberUniversalLocal = (v?: string | number | null) => {
-    if (v === null || v === undefined) return NaN;
-    if (typeof v === 'number') return v;
-    const s = String(v).replace(/\./g, '').replace(/,/g, '.');
-    const n = Number(s);
-    return isNaN(n) ? NaN : n;
-  };
+  const addRow = () => append({ service_id: null, unit_price: 0, quantity: 0, total_price: 0, scope: '' } as unknown as FormServiceItemSubmission);
 
   function calcGrandTotal() {
-    const items = getValues?.('services') as FormServiceItemSubmission[] | undefined;
-    const total = (items ?? []).reduce((acc: number, curr: FormServiceItemSubmission) => {
-      const v = parseNumberUniversalLocal(curr?.total_price as string | number | null);
-      return acc + (isNaN(v) ? 0 : v);
+    const items = (getValues?.('services') as FormServiceItemSubmission[] | undefined) ?? [];
+    const total = items.reduce((acc: number, curr: FormServiceItemSubmission) => {
+      const v = curr && curr.total_price != null ? Number(curr.total_price as unknown) : 0;
+      return acc + (Number.isNaN(v) ? 0 : v);
     }, 0);
     return total;
   }
@@ -133,8 +114,8 @@ export default function ServicesSection(props?: Props) {
                     value={resolveAutoCompleteValue<Service>(serviceSuggestions, serviceCache, field.value, qc, 'service') as Service | undefined}
                     suggestions={serviceSuggestions}
                     field="name"
-                    completeMethod={(e: { query: string }) => onServiceComplete(e.query)}
-                    onChange={makeAutoCompleteOnChange<Service>({ setCache: (updater) => setServiceCache((prev) => updater(prev)), cacheKey: 'service', qc, objectFieldKey: `services.${idx}.service` })(field.onChange)}
+                    completeMethod={(e: { query: string }) => onServiceComplete(e)}
+                    onChange={makeAutoCompleteOnChange<Service>({ setCache: (updater) => setServiceCache((prev) => updater(prev)), cacheKey: 'service', qc, objectFieldKey: `services.${idx}.service`, setFormValue: setValue })(field.onChange)}
                     dropdown
                     className="w-full"
                   />
@@ -150,12 +131,12 @@ export default function ServicesSection(props?: Props) {
                 render={({ field }) => (
                   <InputNumber
                     className="w-full"
-                    value={Number(field.value) || 0}
+                    value={field.value == null ? null : Number(field.value as unknown)}
                     onValueChange={(e) => {
-                      const unit = Number(e.value ?? 0);
-                      field.onChange(unit.toFixed(2));
+                      const unit = e.value ?? 0;
+                      field.onChange(unit ?? null);
                       const q = Number(getValues(`services.${idx}.quantity`) ?? 0);
-                      setServiceField(idx, 'total_price', (unit * q).toFixed(2));
+                      setServiceField(idx, 'total_price', (Number(unit) * q));
                     }}
                     mode="currency"
                     currency="BRL"
@@ -174,12 +155,12 @@ export default function ServicesSection(props?: Props) {
                 render={({ field }) => (
                   <InputNumber
                     className="w-full"
-                    value={Number(field.value) || 0}
+                    value={field.value == null ? null : Number(field.value as unknown)}
                     onValueChange={(e) => {
-                      const q = Number(e.value ?? 0);
-                      field.onChange(q);
+                      const q = e.value ?? 0;
+                      field.onChange(q ?? null);
                       const unit = Number(getValues(`services.${idx}.unit_price`) ?? 0);
-                      setServiceField(idx, 'total_price', (unit * q).toFixed(2));
+                      setServiceField(idx, 'total_price', (unit * Number(q)));
                     }}
                     showButtons
                     min={0}
@@ -196,7 +177,7 @@ export default function ServicesSection(props?: Props) {
                 control={control}
                 name={`services.${idx}.total_price`}
                 render={({ field }) => (
-                  <InputNumber className="w-full" value={Number(field.value) || 0} mode="currency" currency="BRL" locale="pt-BR" disabled />
+                  <InputNumber className="w-full" value={field.value == null ? null : Number(String(field.value))} mode="currency" currency="BRL" locale="pt-BR" disabled />
                 )}
               />
             </div>
