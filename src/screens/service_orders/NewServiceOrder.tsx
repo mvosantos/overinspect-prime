@@ -18,6 +18,7 @@ import WeighingSection from './general/WeighingSection';
 // AttachmentsSection removed — attachments handling moved elsewhere
 import { useForm, FormProvider } from 'react-hook-form';
 import AttachmentsSection from '../../components/AttachmentsSection';
+import { AttachmentsDraftProvider } from '../../contexts/AttachmentsDraftContext';
 import { buildZodSchemaFromFields } from '../../utils/dynamicSchema';
 import z from 'zod';
 import type { ZodTypeAny } from 'zod';
@@ -129,7 +130,27 @@ export default function NewServiceOrder() {
   currentZodRef.current = combinedSchema as z.ZodTypeAny;
 
       // apply defaults to form, ensure services default exists
-      const mergedDefaults = { ...(defaults ?? {}), services: [] };
+      const mergedDefaults = { ...(defaults ?? {}), services: [] } as Record<string, unknown>;
+      try {
+        // load any draft attachments previously saved for this service type so
+        // local uploads survive a remount/navigation away and back.
+        const draftKey = `draft_attachments:${selectedServiceTypeId ?? 'default'}`;
+        const raw = sessionStorage.getItem(draftKey);
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw) as unknown[];
+            // merge only when there are items and the defaults don't already contain attachments
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              mergedDefaults.attachments = parsed;
+            }
+          } catch {
+            // ignore JSON parse errors
+          }
+        }
+      } catch {
+        // sessionStorage may be unavailable in some environments; ignore
+      }
+
       setFormDefaults(mergedDefaults);
       // note: we intentionally do not call reset here because the form is remounted
       // when the selected service type (and schema) changes so the defaults
@@ -600,6 +621,61 @@ export default function NewServiceOrder() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
       }, [formState.isValid, isSubmitting, currentZodRef]);
 
+      // Persist attachments to sessionStorage so local uploads survive navigation
+      // persist attachments on unmount; use ref to read latest selectedServiceTypeId so
+      // we avoid having it as a dependency (outer state shouldn't be in hook deps here)
+    const selectedServiceTypeRef = useRef<string | null>(null);
+    // keep ref updated synchronously during render
+    selectedServiceTypeRef.current = selectedServiceTypeId;
+
+      useEffect(() => {
+        try {
+          const unsub = () => {
+            try {
+              const draftKey = `draft_attachments:${selectedServiceTypeRef.current ?? 'default'}`;
+              const att = getValues('attachments');
+              if (Array.isArray(att) && att.length > 0) {
+                // Only persist lightweight fields (filename, name, path); do not persist full File objects
+                const serializable = att.map((a: unknown) => {
+                  try {
+                    const obj = a as Record<string, unknown>;
+                    return {
+                      id: obj.id,
+                      filename: obj.filename,
+                      name: obj.name,
+                      path: obj.path,
+                      created_at: obj.created_at,
+                    };
+                  } catch {
+                    return null;
+                  }
+                }).filter(Boolean);
+                sessionStorage.setItem(draftKey, JSON.stringify(serializable));
+              } else {
+                sessionStorage.removeItem(draftKey);
+              }
+            } catch {
+              // ignore
+            }
+          };
+          return () => unsub();
+        } catch {
+          // ignore sessionStorage errors
+        }
+      }, [getValues]);
+
+      // Clear draft attachments after successful create/update
+      useEffect(() => {
+        if (createMutation.isSuccess || updateMutation.isSuccess) {
+          try {
+            const draftKey = `draft_attachments:${selectedServiceTypeRef.current ?? 'default'}`;
+            sessionStorage.removeItem(draftKey);
+          } catch {
+            // ignore
+          }
+        }
+      }, [createMutation.isSuccess, updateMutation.isSuccess]);
+
     return (
       <FormProvider {...methodsLocal}>
         <div className="relative pb-24 card">
@@ -809,7 +885,9 @@ export default function NewServiceOrder() {
           update when the selected service type changes. */}
       <div>
         {(!isEditing || (isEditing && zodSchema && currentOrderId)) ? (
-          <FormWrapper key={selectedServiceTypeId ?? 'default'} />
+          <AttachmentsDraftProvider>
+            <FormWrapper key={selectedServiceTypeId ?? 'default'} />
+          </AttachmentsDraftProvider>
         ) : (
           <div className="p-4">
             <Skeleton width="100%" height="2rem" className="mb-4" />
