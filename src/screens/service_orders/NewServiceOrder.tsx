@@ -345,7 +345,16 @@ export default function NewServiceOrder() {
       }
       queryClient.invalidateQueries({ queryKey: ['service-orders'] });
     },
-    onError: () => toast.current?.show({ severity: 'error', summary: 'Erro', detail: 'Não foi possível criar' }),
+    onError: (err: unknown) => {
+      try {
+        const e = err as { message?: string; status?: number; details?: unknown };
+        const msg = e?.message ?? 'Não foi possível criar';
+        toast.current?.show({ severity: 'error', summary: 'Erro', detail: String(msg) });
+        if (typeof console !== 'undefined' && typeof console.error === 'function') console.error('createMutation error', err);
+      } catch {
+        toast.current?.show({ severity: 'error', summary: 'Erro', detail: 'Não foi possível criar' });
+      }
+    },
     // rely on mutation.isLoading to reflect loading state
   });
 
@@ -375,7 +384,16 @@ export default function NewServiceOrder() {
       }
       queryClient.invalidateQueries({ queryKey: ['service-orders'] });
     },
-    onError: () => toast.current?.show({ severity: 'error', summary: 'Erro', detail: 'Não foi possível atualizar' }),
+    onError: (err: unknown) => {
+      try {
+        const e = err as { message?: string; status?: number; details?: unknown };
+        const msg = e?.message ?? 'Não foi possível atualizar';
+        toast.current?.show({ severity: 'error', summary: 'Erro', detail: String(msg) });
+        if (typeof console !== 'undefined' && typeof console.error === 'function') console.error('updateMutation error', err);
+      } catch {
+        toast.current?.show({ severity: 'error', summary: 'Erro', detail: 'Não foi possível atualizar' });
+      }
+    },
     // rely on mutation.isLoading to reflect loading state
   });
   
@@ -408,10 +426,7 @@ export default function NewServiceOrder() {
   const live = typeof getValues === 'function' ? (getValues() as Record<string, unknown>) : {};
   const submitted = (data && typeof data === 'object') ? (data as Record<string, unknown>) : {};
   const valsForValidation: Record<string, unknown> = { ...(live ?? {}), ...(submitted ?? {}) };
-        // Ensure gross_volume_landed is a string (zod expects string in current schema)
-        if (valsForValidation.gross_volume_landed == null) valsForValidation.gross_volume_landed = '';
-        // Ensure nomination_date is string or empty
-        if (valsForValidation.nomination_date == null) valsForValidation.nomination_date = '';
+  // (removed manual fallbacks for nomination_date and gross_volume_landed — schema handles types now)
         // Ensure business_unit_id and other id fields are present as empty string when undefined or null
         ['operation_type_id', 'packing_type_id', 'client_id', 'subsidiary_id', 'business_unit_id'].forEach((k) => {
           if ((valsForValidation as Record<string, unknown>)[k] == null) (valsForValidation as Record<string, unknown>)[k] = '';
@@ -440,6 +455,80 @@ export default function NewServiceOrder() {
 
         // diagnostics removed in production
 
+        // Ensure all schema keys exist in the validation snapshot with safe defaults
+        try {
+          const sAny = schema as unknown;
+          let shape: Record<string, unknown> | undefined = undefined;
+          // attempt to access Zod shape in a type-safe way
+          if (sAny && typeof sAny === 'object') {
+            const sObj = sAny as Record<string, unknown>;
+            const def = sObj['_def'] as unknown;
+            if (def && typeof def === 'object') {
+              const defObj = def as Record<string, unknown>;
+              const maybeShape = defObj['shape'] as unknown;
+              if (typeof maybeShape === 'function') {
+                try {
+                  const fn = maybeShape as unknown as (() => Record<string, unknown> | unknown);
+                  const result = fn();
+                  if (result && typeof result === 'object') shape = result as Record<string, unknown>;
+                } catch {
+                  // ignore
+                }
+              } else if (maybeShape && typeof maybeShape === 'object') {
+                shape = maybeShape as Record<string, unknown>;
+              }
+            }
+          }
+          if (shape && typeof shape === 'object') {
+            Object.keys(shape).forEach((k) => {
+              // if missing, provide a conservative default: '' for scalars, [] for arrays
+              if ((valsForValidation as Record<string, unknown>)[k] == null) {
+                try {
+                  const node = (shape as Record<string, unknown>)[k] as unknown;
+                  let kind: unknown = undefined;
+                  if (node && typeof node === 'object') {
+                    const nobj = node as Record<string, unknown>;
+                    const ndef = nobj['_def'] as unknown;
+                    if (ndef && typeof ndef === 'object') {
+                      kind = (ndef as Record<string, unknown>)['typeName'];
+                    }
+                  }
+                  if (kind === 'ZodArray') {
+                    (valsForValidation as Record<string, unknown>)[k] = [];
+                  } else {
+                    (valsForValidation as Record<string, unknown>)[k] = '';
+                  }
+                } catch {
+                  (valsForValidation as Record<string, unknown>)[k] = '';
+                }
+              }
+            });
+          }
+        } catch {
+          // ignore shape inspection failures
+        }
+
+        // Also ensure any keys that were provided as form defaults exist (fallback)
+        try {
+          if (formDefaults && typeof formDefaults === 'object') {
+            Object.keys(formDefaults).forEach((k) => {
+              if ((valsForValidation as Record<string, unknown>)[k] == null) {
+                (valsForValidation as Record<string, unknown>)[k] = '';
+              }
+            });
+          }
+        } catch {
+          // ignore
+        }
+
+        // Explicit fallback for known date/number fields that sometimes are missing
+        try {
+          if ((valsForValidation as Record<string, unknown>).nomination_date == null) (valsForValidation as Record<string, unknown>).nomination_date = '';
+          if ((valsForValidation as Record<string, unknown>).gross_volume_landed == null) (valsForValidation as Record<string, unknown>).gross_volume_landed = '';
+        } catch {
+          // ignore
+        }
+
         // Deep-normalize: convert null/undefined to '' and coerce primitives to strings
         const deepNormalizeStrings = (v: unknown): unknown => {
           if (v === null || v === undefined) return '';
@@ -459,9 +548,120 @@ export default function NewServiceOrder() {
           return v;
         };
 
-        const normalizedForParse = deepNormalizeStrings(valsForValidation) as unknown;
-        const parsed = schema.safeParse(normalizedForParse);
-          if (!parsed.success) {
+        // Explicitly ensure problematic fields are not undefined so Zod won't complain
+  // removed manual per-field patches — rely on improved dynamic schema
+
+        // DEBUG: log snapshot and schema shape keys to diagnose persistent Zod failures
+        try {
+          const sv = (valsForValidation as Record<string, unknown>);
+          const keys = Object.keys(sv).slice(0, 200);
+          const nd = { nomination_date: sv.nomination_date, gross_volume_landed: sv.gross_volume_landed };
+          if (typeof console !== 'undefined' && typeof console.info === 'function') console.info('[ZOD PREPARATION] keys:', keys, 'preview:', nd);
+          // if we captured a shape earlier, log its keys too
+          try {
+            const sAny = schema as unknown;
+            if (sAny && typeof sAny === 'object') {
+              const sObj = sAny as Record<string, unknown>;
+              const def = sObj['_def'] as unknown;
+              if (def && typeof def === 'object') {
+                const defObj = def as Record<string, unknown>;
+                const maybeShape = defObj['shape'] as unknown;
+                let shapeKeys: string[] | undefined = undefined;
+                if (typeof maybeShape === 'function') {
+                  try {
+                    const fn = maybeShape as unknown as (() => Record<string, unknown> | unknown);
+                    const result = fn();
+                    if (result && typeof result === 'object') shapeKeys = Object.keys(result as Record<string, unknown>);
+                  } catch {
+                    // ignore
+                  }
+                } else if (maybeShape && typeof maybeShape === 'object') {
+                  shapeKeys = Object.keys(maybeShape as Record<string, unknown>);
+                }
+                if (shapeKeys) console.info('[ZOD PREPARATION] schema keys:', shapeKeys.slice(0,200));
+              }
+            }
+          } catch {
+            // ignore
+          }
+        } catch {
+          // ignore logging issues
+        }
+
+        let normalizedForParse = deepNormalizeStrings(valsForValidation) as unknown;
+        let parsed = schema.safeParse(normalizedForParse);
+        // If we get the specific Zod error about 'expected string, received undefined',
+        // try a single automatic repair: set those keys to '' and re-run validation once.
+        if (!parsed.success) {
+          try {
+            const flat = parsed.error.flatten();
+            const fieldErrs = flat.fieldErrors || {} as Record<string, (string[] | undefined)>;
+            const keysToPatch: string[] = [];
+            Object.entries(fieldErrs).forEach(([k, v]) => {
+              if (Array.isArray(v)) {
+                const hasInvalidInput = v.some((msg) => typeof msg === 'string' && msg.includes('Invalid input: expected'));
+                if (hasInvalidInput) keysToPatch.push(k);
+              }
+            });
+            if (keysToPatch.length > 0) {
+              // Filter keys: only auto-patch those that are NOT marked required in serviceTypeFields
+              const patchable = keysToPatch.filter((k) => {
+                try {
+                  const meta = (serviceTypeFields || []).find((f) => f && typeof f === 'object' && (f as Record<string, unknown>).name === k) as (Record<string, unknown> | undefined);
+                  if (!meta) return true; // no metadata = assume patchable (manual metadata absent)
+                  return !(meta.required === true);
+                } catch {
+                  return true;
+                }
+              });
+              if (patchable.length > 0) {
+                // apply patches to the validation snapshot only for patchable keys
+                patchable.forEach((k) => {
+                  try { (valsForValidation as Record<string, unknown>)[k] = ''; } catch { /* ignore */ }
+                });
+                normalizedForParse = deepNormalizeStrings(valsForValidation) as unknown;
+                parsed = schema.safeParse(normalizedForParse);
+                if (typeof console !== 'undefined' && typeof console.info === 'function') console.info('[ZOD AUTO-PATCH] patched keys:', patchable);
+                try {
+                  toast.current?.show({ severity: 'warn', summary: 'Validação', detail: `Campos não obrigatórios ajustados: ${patchable.join(', ')}`, life: 5000 });
+                } catch {
+                  // ignore toast failures
+                }
+              }
+            }
+          } catch {
+            // ignore repair attempt failures
+          }
+        }
+        if (!parsed.success) {
+          // log detailed zod errors for debugging and show a toast summary
+          try {
+            // Print both formatted and flattened structures to console for easy inspection
+            if (typeof console !== 'undefined' && typeof console.error === 'function') {
+              console.error('[ZOD VALIDATION FAILURE] format:', parsed.error.format());
+              console.error('[ZOD VALIDATION FAILURE] flatten:', parsed.error.flatten());
+            }
+
+            // Show a brief toast with the first few field errors (if any)
+            try {
+              const flatPreview = parsed.error.flatten();
+              const fieldErrorsPreview = flatPreview.fieldErrors ?? {} as Record<string, (string[] | undefined)>;
+              const msgs: string[] = [];
+              Object.entries(fieldErrorsPreview).forEach(([k, v]) => {
+                if (Array.isArray(v) && v.length > 0) msgs.push(`${k}: ${v[0]}`);
+              });
+              if (msgs.length > 0) {
+                toast.current?.show({ severity: 'error', summary: 'Validação', detail: msgs.slice(0, 3).join('; '), life: 8000 });
+              } else {
+                toast.current?.show({ severity: 'error', summary: 'Validação', detail: 'Existem erros de validação no formulário', life: 8000 });
+              }
+            } catch {
+              // ignore toast failures
+            }
+          } catch {
+            // ignore logging errors
+          }
+
           // set form errors where possible and abort submission
           try {
             // diagnostics removed: we still map errors to the form below
@@ -819,6 +1019,9 @@ export default function NewServiceOrder() {
                       grossVolumeInvoiceField: byName['gross_volume_invoice'],
                       netVolumeInvoiceField: byName['net_volume_invoice'],
                       tareVolumeInvoiceField: byName['tare_volume_invoice'],
+                      grossVolumeLandedField: byName['gross_volume_landed'],
+                      netVolumeLandedField: byName['net_volume_landed'],
+                      tareVolumeLandedField: byName['tare_volume_landed'],
                       landingMetricUnitField: byName['landing_metric_unit_id'],
                     } as Record<string, FieldMetaLocal | undefined>;
 

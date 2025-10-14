@@ -257,13 +257,17 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
           <h3 className="text-lg font-semibold text-teal-700">Dados Gerais</h3>
         </div>
       </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         
         {/* Campos existentes mantidos */}
+
         {/* ID */}
+
         {showIfVisible('id') && (
           <div>
             <label className="block mb-1">ID {isRequired('id') ? '*' : ''}</label>
+
             {control ? (
               <Controller
                 control={control}
@@ -280,14 +284,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
             ) : (
               <InputText className="w-full" disabled {...(register ? register('id') : {})} />
             )}
+
             {errors && errors['id'] && <small className="p-error">{_getErrorMessage(errors as Record<string, unknown>, 'id')}</small>}
           </div>
         )}
 
         {/* Nomination date */}
+
         {showIfVisible('nomination_date') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:nomination_date")}</label>
+            <label className="block mb-1">{t("new_service_order:nomination_date")} 
+{isRequired('nomination_date') ? '*' : ''}</label>
+
             <Controller
               control={control}
               name="nomination_date"
@@ -299,13 +307,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 />
               )}
             />
+
+                        {errors && errors['subsidiary_id'] && <small className="p-error">{_getErrorMessage(errors as Record<string, unknown>, 'subsidiary_id')}</small>}
+
           </div>
         )}
 
         {/* Subsidiary ID */}
+
         {showIfVisible('subsidiary_id') && (
           <div>
             <label className="block mb-1">Subsidiária {isRequired('subsidiary_id') ? '*' : ''}</label>
+
             <Controller
               control={control}
               name="subsidiary_id"
@@ -321,14 +334,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 />
               )}
             />
+
             {errors && errors['subsidiary_id'] && <small className="p-error">{_getErrorMessage(errors as Record<string, unknown>, 'subsidiary_id')}</small>}
           </div>
         )}
 
         {/* Business Unit ID */}
+
         {showIfVisible('business_unit_id') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:business_unit")} {isRequired('business_unit_id') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:business_unit")} 
+{isRequired('business_unit_id') ? '*' : ''}</label>
+
             <Controller
               control={control}
               name="business_unit_id"
@@ -346,6 +363,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 />
               )}
             />
+
             {errors && errors['business_unit_id'] && <small className="p-error">{_getErrorMessage(errors as Record<string, unknown>, 'business_unit_id')}</small>}
           </div>
         )}
@@ -353,9 +371,12 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
         {/* NOVOS CAMPOS ADICIONADOS */}
 
         {/* Client ID */}
+
         {showIfVisible('client_id') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:client")} {isRequired('client_id') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:client")} 
+{isRequired('client_id') ? '*' : ''}</label>
+
             <Controller
               control={control}
               name="client_id"
@@ -371,14 +392,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 />
               )}
             />
+
             {errors && errors['client_id'] && <small className="p-error">{_getErrorMessage(errors as Record<string, unknown>, 'client_id')}</small>}
           </div>
         )}
 
         {/* Order Identifier */}
+
         {showIfVisible('order_identifier') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:order_identifier")} {isRequired('order_identifier') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:order_identifier")} 
+{isRequired('order_identifier') ? '*' : ''}</label>
+
             {control ? (
               <Controller
                 control={control}
@@ -394,14 +419,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
             ) : (
               <InputText className="w-full" {...(register ? register('order_identifier') : {})} />
             )}
+
             {errors && errors['order_identifier'] && <small className="p-error">{_getErrorMessage(errors as Record<string, unknown>, 'order_identifier')}</small>}
           </div>
         )}
 
         {/* Currency ID */}
+
         {showIfVisible('currency_id') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:currency")} {isRequired('currency_id') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:currency")} 
+{isRequired('currency_id') ? '*' : ''}</label>
+
             <Controller
               control={control}
               name="currency_id"
@@ -417,14 +446,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 />
               )}
             />
+
             {errors && errors['currency_id'] && <small className="p-error">{getErrorMessage(errors, 'currency_id')}</small>}
           </div>
         )}
 
         {/* OS Number */}
+
         {showIfVisible('number') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:os_number")} {isRequired('number') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:os_number")} 
+{isRequired('number') ? '*' : ''}</label>
+
             {control ? (
               <Controller
                 control={control}
@@ -441,14 +474,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
             ) : (
               <InputText className="w-full" disabled {...(register ? register('number') : {})} />
             )}
+
             {errors && errors['number'] && <small className="p-error">{getErrorMessage(errors, 'number')}</small>}
           </div>
         )}
 
         {/* Reference Number */}
+
         {showIfVisible('ref_number') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:ref_number")} {isRequired('ref_number') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:ref_number")} 
+{isRequired('ref_number') ? '*' : ''}</label>
+
             {control ? (
               <Controller
                 control={control}
@@ -464,14 +501,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
             ) : (
               <InputText className="w-full" {...(register ? register('ref_number') : {})} />
             )}
+
             {errors && errors['ref_number'] && <small className="p-error">{getErrorMessage(errors, 'ref_number')}</small>}
           </div>
         )}
 
         {/* Client Reference Number */}
+
         {showIfVisible('client_ref_number') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:client_ref_number")} {isRequired('client_ref_number') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:client_ref_number")} 
+{isRequired('client_ref_number') ? '*' : ''}</label>
+
             {control ? (
               <Controller
                 control={control}
@@ -487,14 +528,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
             ) : (
               <InputText className="w-full" {...(register ? register('client_ref_number') : {})} />
             )}
+
             {errors && errors['client_ref_number'] && <small className="p-error">{getErrorMessage(errors, 'client_ref_number')}</small>}
           </div>
         )}
 
         {/* Invoice Number */}
+
         {showIfVisible('invoice_number') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:invoice_number")} {isRequired('invoice_number') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:invoice_number")} 
+{isRequired('invoice_number') ? '*' : ''}</label>
+
             {control ? (
               <Controller
                 control={control}
@@ -510,14 +555,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
             ) : (
               <InputText className="w-full" {...(register ? register('invoice_number') : {})} />
             )}
+
             {errors && errors['invoice_number'] && <small className="p-error">{getErrorMessage(errors, 'invoice_number')}</small>}
           </div>
         )}
 
         {/* Invoice Value */}
+
         {showIfVisible('invoice_value') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:invoice_value")} {isRequired('invoice_value') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:invoice_value")} 
+{isRequired('invoice_value') ? '*' : ''}</label>
+
             {control ? (
               <Controller
                 control={control}
@@ -534,14 +583,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 )}
               />
             ) : null}
+
             {errors && errors['invoice_value'] && <small className="p-error">{getErrorMessage(errors, 'invoice_value')}</small>}
           </div>
         )}
 
         {/* Client Invoice Number */}
+
         {showIfVisible('client_invoice_number') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:client_invoice_number")} {isRequired('client_invoice_number') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:client_invoice_number")} 
+{isRequired('client_invoice_number') ? '*' : ''}</label>
+
             {control ? (
               <Controller
                 control={control}
@@ -557,14 +610,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
             ) : (
               <InputText className="w-full" {...(register ? register('client_invoice_number') : {})} />
             )}
+
             {errors && errors['client_invoice_number'] && <small className="p-error">{getErrorMessage(errors, 'client_invoice_number')}</small>}
           </div>
         )}
 
         {/* Product ID */}
+
         {showIfVisible('product_id') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:product")} {isRequired('product_id') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:product")} 
+{isRequired('product_id') ? '*' : ''}</label>
+
             <Controller
               control={control}
               name="product_id"
@@ -580,14 +637,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 />
               )}
             />
+
             {errors && errors['product_id'] && <small className="p-error">{getErrorMessage(errors, 'product_id')}</small>}
           </div>
         )}
 
         {/* Quantity Products */}
+
         {showIfVisible('qtd_products') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:qtd_products")} {isRequired('qtd_products') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:qtd_products")} 
+{isRequired('qtd_products') ? '*' : ''}</label>
+
             {control ? (
               <Controller
                 control={control}
@@ -604,14 +665,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 )}
               />
             ) : null}
+
             {errors && errors['qtd_products'] && <small className="p-error">{getErrorMessage(errors, 'qtd_products')}</small>}
           </div>
         )}
 
         {/* Trader ID */}
+
         {showIfVisible('trader_id') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:trader")} {isRequired('trader_id') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:trader")} 
+{isRequired('trader_id') ? '*' : ''}</label>
+
             <Controller
               control={control}
               name="trader_id"
@@ -627,14 +692,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 />
               )}
             />
+
             {errors && errors['trader_id'] && <small className="p-error">{getErrorMessage(errors, 'trader_id')}</small>}
           </div>
         )}
 
         {/* Exporter ID */}
+
         {showIfVisible('exporter_id') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:exporter")} {isRequired('exporter_id') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:exporter")} 
+{isRequired('exporter_id') ? '*' : ''}</label>
+
             <Controller
               control={control}
               name="exporter_id"
@@ -650,14 +719,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 />
               )}
             />
+
             {errors && errors['exporter_id'] && <small className="p-error">{getErrorMessage(errors, 'exporter_id')}</small>}
           </div>
         )}
 
         {/* Shipper ID */}
+
         {showIfVisible('shipper_id') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:shipper")} {isRequired('shipper_id') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:shipper")} 
+{isRequired('shipper_id') ? '*' : ''}</label>
+
             <Controller
               control={control}
               name="shipper_id"
@@ -673,14 +746,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 />
               )}
             />
+
             {errors && errors['shipper_id'] && <small className="p-error">{getErrorMessage(errors, 'shipper_id')}</small>}
           </div>
         )}
 
         {/* Vessel Name */}
+
         {showIfVisible('vessel_name') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:vessel_name")} {isRequired('vessel_name') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:vessel_name")} 
+{isRequired('vessel_name') ? '*' : ''}</label>
+
             {control ? (
               <Controller
                 control={control}
@@ -696,14 +773,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
             ) : (
               <InputText className="w-full" {...(register ? register('vessel_name') : {})} />
             )}
+
             {errors && errors['vessel_name'] && <small className="p-error">{getErrorMessage(errors, 'vessel_name')}</small>}
           </div>
         )}
 
         {/* Container Number */}
+
         {showIfVisible('container_number') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:container_number")} {isRequired('container_number') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:container_number")} 
+{isRequired('container_number') ? '*' : ''}</label>
+
             {control ? (
               <Controller
                 control={control}
@@ -719,14 +800,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
             ) : (
               <InputText className="w-full" {...(register ? register('container_number') : {})} />
             )}
+
             {errors && errors['container_number'] && <small className="p-error">{getErrorMessage(errors, 'container_number')}</small>}
           </div>
         )}
 
         {/* Booking Number */}
+
         {showIfVisible('booking_number') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:booking_number")} {isRequired('booking_number') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:booking_number")} 
+{isRequired('booking_number') ? '*' : ''}</label>
+
             {control ? (
               <Controller
                 control={control}
@@ -742,14 +827,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
             ) : (
               <InputText className="w-full" {...(register ? register('booking_number') : {})} />
             )}
+
             {errors && errors['booking_number'] && <small className="p-error">{getErrorMessage(errors, 'booking_number')}</small>}
           </div>
         )}
 
         {/* Contract Number */}
+
         {showIfVisible('contract_number') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:contract_number")} {isRequired('contract_number') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:contract_number")} 
+{isRequired('contract_number') ? '*' : ''}</label>
+
             {control ? (
               <Controller
                 control={control}
@@ -765,14 +854,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
             ) : (
               <InputText className="w-full" {...(register ? register('contract_number') : {})} />
             )}
+
             {errors && errors['contract_number'] && <small className="p-error">{getErrorMessage(errors, 'contract_number')}</small>}
           </div>
         )}
 
         {/* Harvest */}
+
         {showIfVisible('harvest') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:harvest")} {isRequired('harvest') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:harvest")} 
+{isRequired('harvest') ? '*' : ''}</label>
+
             {control ? (
               <Controller
                 control={control}
@@ -788,14 +881,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
             ) : (
               <InputText className="w-full" {...(register ? register('harvest') : {})} />
             )}
+
             {errors && errors['harvest'] && <small className="p-error">{getErrorMessage(errors, 'harvest')}</small>}
           </div>
         )}
 
         {/* Region ID */}
+
         {showIfVisible('region_id') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:region")} {isRequired('region_id') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:region")} 
+{isRequired('region_id') ? '*' : ''}</label>
+
             <Controller
               control={control}
               name="region_id"
@@ -811,14 +908,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 />
               )}
             />
+
             {errors && errors['region_id'] && <small className="p-error">{getErrorMessage(errors, 'region_id')}</small>}
           </div>
         )}
 
         {/* City ID */}
+
         {showIfVisible('city_id') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:city")} {isRequired('city_id') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:city")} 
+{isRequired('city_id') ? '*' : ''}</label>
+
             <Controller
               control={control}
               name="city_id"
@@ -834,14 +935,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 />
               )}
             />
+
             {errors && errors['city_id'] && <small className="p-error">{getErrorMessage(errors, 'city_id')}</small>}
           </div>
         )}
 
         {/* Operation Type ID */}
+
         {showIfVisible('operation_type_id') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:operation_type")} {isRequired('operation_type_id') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:operation_type")} 
+{isRequired('operation_type_id') ? '*' : ''}</label>
+
             <Controller
               control={control}
               name="operation_type_id"
@@ -857,14 +962,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 />
               )}
             />
+
             {errors && errors['operation_type_id'] && <small className="p-error">{getErrorMessage(errors, 'operation_type_id')}</small>}
           </div>
         )}
 
         {/* Cargo Type ID */}
+
         {showIfVisible('cargo_id') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:cargo_type")} {isRequired('cargo_id') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:cargo_type")} 
+{isRequired('cargo_id') ? '*' : ''}</label>
+
             <Controller
               control={control}
               name="cargo_id"
@@ -880,14 +989,18 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 />
               )}
             />
+
             {errors && errors['cargo_id'] && <small className="p-error">{getErrorMessage(errors, 'cargo_id')}</small>}
           </div>
         )}
 
         {/* Packing Type ID */}
+
         {showIfVisible('packing_type_id') && (
           <div>
-            <label className="block mb-1">{t("new_service_order:packing_type")} {isRequired('packing_type_id') ? '*' : ''}</label>
+            <label className="block mb-1">{t("new_service_order:packing_type")} 
+{isRequired('packing_type_id') ? '*' : ''}</label>
+
             <Controller
               control={control}
               name="packing_type_id"
@@ -903,6 +1016,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
                 />
               )}
             />
+
             {errors && errors['packing_type_id'] && <small className="p-error">{getErrorMessage(errors, 'packing_type_id')}</small>}
           </div>
         )}
@@ -910,9 +1024,12 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
       </div>
 
       {/* Comments Field */}
+
       {showIfVisible('comments') && (
         <div className="mt-6">
-          <label className="block mb-1">{t("new_service_order:comments")} {isRequired('comments') ? '*' : ''}</label>
+          <label className="block mb-1">{t("new_service_order:comments")} 
+{isRequired('comments') ? '*' : ''}</label>
+
           {control ? (
             <Controller
               control={control}
@@ -933,6 +1050,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
               placeholder="Ex: Container/Caminhão, observações..."
             />
           )}
+
           {errors && errors['comments'] && <small className="p-error">{getErrorMessage(errors, 'comments')}</small>}
         </div>
       )}

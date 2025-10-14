@@ -112,7 +112,7 @@ class ServiceOrderService extends BaseService {
     return v;
   }
 
-  async create(payload: unknown) {
+  async create<T = unknown>(payload: unknown): Promise<T> {
   // Before creating, remove nested objects and upload new attachments via presigned URLs
   const pl = payload as Record<string, unknown>;
       // ensure attachments node exists so backend receives an empty array when no attachments
@@ -147,21 +147,22 @@ class ServiceOrderService extends BaseService {
       }
 
     if (typeof console !== 'undefined' && typeof console.info === 'function') console.info('[ServiceOrderService] final create payload attachments:', pl.attachments);
-    const res = await api.post(this.basePath, pl);
+    // Use BaseService.create to ensure consistent request/error handling (retries, normalized ApiError)
+  const data = await super.create<T>(pl);
     try {
-      return this.normalizeResponse(res.data) as unknown;
+      return this.normalizeResponse(data) as unknown as T;
     } catch {
-      return res.data;
+      return data as unknown as T;
     }
   }
 
   // Typed wrapper: accept the submission DTO and return a normalized ServiceOrder
   async createSubmission(payload: ServiceOrderSubmission) {
-    const raw = await this.create(payload as unknown);
+    const raw = await this.create<unknown>(payload as unknown);
     return this.normalizeResponse(raw as unknown) as unknown as import('../models/serviceOrder').ServiceOrder;
   }
 
-  async update(id: string, payload: unknown) {
+  async update<T = unknown>(id: string, payload: unknown): Promise<T> {
   const pl = payload as Record<string, unknown>;
       // ensure attachments node exists so backend receives an array even when empty
       if (!Array.isArray(pl.attachments)) pl.attachments = [];
@@ -200,17 +201,18 @@ class ServiceOrderService extends BaseService {
       }
 
     if (typeof console !== 'undefined' && typeof console.info === 'function') console.info('[ServiceOrderService] final update payload attachments:', pl.attachments);
-    const res = await api.put(`${this.basePath}/${id}`, pl);
+    // Delegate to BaseService.update for consistent behavior and error shaping
+  const data = await super.update<T>(id, pl);
     try {
-      return this.normalizeResponse(res.data) as unknown;
+      return this.normalizeResponse(data) as unknown as T;
     } catch {
-      return res.data;
+      return data as unknown as T;
     }
   }
 
   // Typed wrapper: accept the submission DTO and return a normalized ServiceOrder
   async updateSubmission(id: string, payload: ServiceOrderSubmission): Promise<ServiceOrder> {
-    const raw = await this.update(id, payload as unknown);
+    const raw = await this.update<unknown>(id, payload as unknown);
     return this.normalizeResponse(raw as unknown) as ServiceOrder;
   }
 
