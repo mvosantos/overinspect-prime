@@ -615,7 +615,7 @@ export default function NewServiceOrder() {
           <div className="flex items-center justify-between mb-4">
             <h1 className="ml-5 text-2xl font-semibold text-teal-700">{currentOrderId ? `${t('service_orders:service_order')} ${getValues('number')}` : t('records:new_service_order')}</h1>
             <div className="flex gap-2">
-              <Dropdown value={selectedServiceTypeId} options={serviceTypes.map(t => ({ label: t.name, value: t.id }))} onChange={(e) => { setSelectedServiceTypeId(e.value ?? null); setValue('service_type_id', e.value ?? null); }} placeholder={t('service_orders:select_service_type')} disabled={!!selectedServiceTypeId} className='w-[400px]' />
+              <Dropdown value={selectedServiceTypeId} options={serviceTypes.map(t => ({ label: t.name, value: t.id }))} onChange={(e) => { setSelectedServiceTypeId(e.value ?? null); setValue('service_type_id', e.value ?? null); }} placeholder={t('service_orders:select_service_type')} disabled={!!getValues('id')} className='w-[400px]' />
             </div>
           </div>
 
@@ -732,7 +732,7 @@ export default function NewServiceOrder() {
                 CUSTOS ENVOLVIDOS
               </span>
             }>
-              <PaymentsSection control={control} setValue={setValue} getValues={getValues} selectedServiceTypeId={selectedServiceTypeId} />
+                <PaymentsSection control={control} setValue={setValue} getValues={getValues} selectedServiceTypeId={selectedServiceTypeId} fields={serviceTypeFields} />
             </TabPanel>
             <TabPanel header={
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -791,3 +791,4 @@ export default function NewServiceOrder() {
     </div>
   );
 }
+                                                                                                                                                                         
