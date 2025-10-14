@@ -34,7 +34,7 @@ export default function ScheduleSection(props?: Props) {
   const [userSuggestions, setUserSuggestions] = useState<User[]>([]);
   const [userCache, setUserCache] = useState<Record<string, User>>({});
 
-  const createUserComplete = createAutocompleteComplete<User>({ listFn: userService.list, qc, cacheKeyRoot: 'user', setSuggestions: setUserSuggestions, setCache: (updater) => setUserCache((prev) => updater(prev)), per_page: 20, filterKey: 'name' });
+  const createUserComplete = createAutocompleteComplete<User>({ listFn: (params) => userService.list(params), qc, cacheKeyRoot: 'user', setSuggestions: setUserSuggestions, setCache: (updater) => setUserCache((prev) => updater(prev)), per_page: 20, filterKey: 'name' });
 
   const wrapSetUserCache = (updater: (prev: Record<string, User>) => Record<string, User>) => setUserCache((prev) => updater(prev));
 
