@@ -315,18 +315,30 @@ export default function NewServiceOrder() {
 
   const createMutation = useMutation({
     mutationFn: (payload: FormSubmission) => serviceOrderService.createSubmission(payload),
-    onSuccess: (data: ServiceOrder) => {
+    onSuccess: async (data: ServiceOrder) => {
       toast.current?.show({ severity: 'success', summary: 'Sucesso', detail: 'Ordem criada' });
       if (data?.id) setCurrentOrderId(data.id);
-      // replace any temporary attachments in the form with the server-returned list
+      // If the server returned attachments, use them. Otherwise try to fetch
+      // the full saved record to obtain the attachments node (some backends omit it on create).
       try {
         if (data && typeof data === 'object') {
-          // set attachments field so temporary file rows are removed
-          // data.attachments shape should match form field
-          setValue('attachments', (data as ServiceOrder).attachments ?? []);
+          const atts = (data as ServiceOrder).attachments;
+          if (Array.isArray(atts) && atts.length > 0) {
+            setValue('attachments', atts);
+          } else if ((data as ServiceOrder).id) {
+            try {
+              const full = await serviceOrderService.get<ServiceOrder | null>(data.id);
+              if (full && typeof full === 'object' && Array.isArray((full as ServiceOrder).attachments)) {
+                setValue('attachments', (full as ServiceOrder).attachments ?? []);
+              }
+            } catch (e) {
+              // ignore fetch errors — keep temporary attachments in place
+              if (typeof console !== 'undefined' && typeof console.error === 'function') console.error('failed to re-fetch created service order', e);
+            }
+          }
         }
-      } catch {
-        // ignore
+      } catch (e) {
+        if (typeof console !== 'undefined' && typeof console.error === 'function') console.error('create onSuccess processing error', e);
       }
       queryClient.invalidateQueries({ queryKey: ['service-orders'] });
     },
@@ -336,15 +348,27 @@ export default function NewServiceOrder() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: FormSubmission }) => serviceOrderService.updateSubmission(id, payload),
-    onSuccess: (data: ServiceOrder) => {
+    onSuccess: async (data: ServiceOrder) => {
       toast.current?.show({ severity: 'success', summary: 'Sucesso', detail: 'Ordem atualizada' });
       if (data?.id) setCurrentOrderId(data.id);
       try {
         if (data && typeof data === 'object') {
-          setValue('attachments', (data as ServiceOrder).attachments ?? []);
+          const atts = (data as ServiceOrder).attachments;
+          if (Array.isArray(atts) && atts.length > 0) {
+            setValue('attachments', atts);
+          } else if ((data as ServiceOrder).id) {
+            try {
+              const full = await serviceOrderService.get<ServiceOrder | null>(data.id);
+              if (full && typeof full === 'object' && Array.isArray((full as ServiceOrder).attachments)) {
+                setValue('attachments', (full as ServiceOrder).attachments ?? []);
+              }
+            } catch (e) {
+              if (typeof console !== 'undefined' && typeof console.error === 'function') console.error('failed to re-fetch updated service order', e);
+            }
+          }
         }
-      } catch {
-        // ignore
+      } catch (e) {
+        if (typeof console !== 'undefined' && typeof console.error === 'function') console.error('update onSuccess processing error', e);
       }
       queryClient.invalidateQueries({ queryKey: ['service-orders'] });
     },
