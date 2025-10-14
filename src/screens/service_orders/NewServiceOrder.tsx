@@ -26,6 +26,9 @@ import { useTranslation } from 'react-i18next';
 import { formatForPayload, parseToDateOrOriginal, formatShortDateTime } from '../../utils/dateHelpers';
 import ScheduleSection from './general/ScheduleSection';
 import PaymentsSection from './general/PaymentsSection';
+import OPERATION_SECTIONS from '../../config/operationSections';
+import GoodsSection from './operationSections/GoodsSection';
+import TalliesSection from './operationSections/TalliesSection';
 import PageFooter from '../../components/PageFooter';
 import { useSave } from '../../contexts/SaveContext';
 
@@ -846,7 +849,22 @@ export default function NewServiceOrder() {
                 </span>
               }
             >
-              <div>Operações (aparecerá somente após criação/edição)</div>
+              {selectedServiceTypeId && currentOrderId ? (
+                (() => {
+                  const cfg = OPERATION_SECTIONS[selectedServiceTypeId as string];
+                  if (!cfg) return <div>Operações: Nenhuma section configurada para este tipo de serviço</div>;
+                  switch (cfg.key) {
+                    case 'goods':
+                      return <GoodsSection currentOrderId={currentOrderId} selectedServiceTypeId={selectedServiceTypeId} />;
+                    case 'tallies':
+                      return <TalliesSection currentOrderId={currentOrderId} selectedServiceTypeId={selectedServiceTypeId} />;
+                    default:
+                      return <div>Operações: seção desconhecida</div>;
+                  }
+                })()
+              ) : (
+                <div>Operações (aparecerá somente após criação/edição)</div>
+              )}
             </TabPanel>
 
             <TabPanel header={
