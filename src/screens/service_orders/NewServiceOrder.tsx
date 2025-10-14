@@ -170,6 +170,7 @@ export default function NewServiceOrder() {
       id: p?.id,
       document_type_id: p?.document_type_id ?? safeId(p?.document_type) ?? null,
       document_number: p?.document_number ?? '',
+      description: p?.description ?? '',
       unit_price: p?.unit_price ?? '0.00',
       quantity: p?.quantity ?? '0',
       total_price: p?.total_price ?? '0.00',
