@@ -10,6 +10,7 @@ import serviceOrderStatusService from '../services/serviceOrderStatusService';
 import serviceOrderService from '../services/serviceOrderService';
 import type { ServiceOrder } from '../models/serviceOrder';
 import { Toast } from 'primereact/toast';
+import { Tooltip } from 'primereact/tooltip';
 import { useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -44,6 +45,7 @@ export default function PageFooter({ onSaveClick, label = 'Salvar', currentOrder
 
   const isDisabled = !meta.isValid || meta.isSubmitting;
 
+
   // Derive the statusId to fetch targets for. Enrich the order with service_order_status
   // when the order lacks it by fetching the status metadata inside the order query.
   const orderQuery = useQuery({ queryKey: ['service-order', currentOrderId], queryFn: async () => {
@@ -71,6 +73,8 @@ export default function PageFooter({ onSaveClick, label = 'Salvar', currentOrder
   const statusIdToFetch = currentStatusId ?? (orderQuery.data as ServiceOrder | null)?.service_order_status_id ?? null;
 
   const currentStatusName = (orderQuery.data as ServiceOrder | null)?.service_order_status?.name ?? 'Mudar status';
+
+  const canEdit = ((orderQuery.data as ServiceOrder | null)?.service_order_status?.enable_editing ?? true) === true;
 
   // Query the targets for the given status id
   const targetsQuery = useQuery({ queryKey: ['service-order-status-targets', statusIdToFetch], queryFn: async () => {
@@ -150,9 +154,13 @@ export default function PageFooter({ onSaveClick, label = 'Salvar', currentOrder
 
   const showStatusDropdown = Boolean(currentOrderId && statusOptions.length > 0);
 
+  const saveTooltip = !canEdit ? 'A solicitação de crédito não pode ser modificada' : (!meta.isValid ? 'O formulário contém erros' : undefined);
+
   return (
     <>
       <Toast ref={toast} position="top-right" />
+      {/* Tooltip attached to the Save button; only shows when there's a message */}
+      <Tooltip target=".pf-save-btn" position="left" appendTo={() => document.body} />
       <div className={`fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between p-3 border-t ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
         <div className="flex items-center gap-2">
           {showStatusDropdown && (
@@ -160,10 +168,13 @@ export default function PageFooter({ onSaveClick, label = 'Salvar', currentOrder
           )}
         </div>
         <div>
-          <button type="button" className={`p-button p-component p-button-primary ${meta.isSubmitting ? 'p-disabled' : ''}`} onClick={handleClick} disabled={isDisabled}>
-            {meta.isSubmitting ? <i className="pi pi-spin pi-spinner" /> : <i className="pi pi-save" />}
-            <span className="ml-2">{label}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button type="button" data-pr-tooltip={saveTooltip} title={saveTooltip} aria-label={saveTooltip ?? 'Salvar'} className={`pf-save-btn p-button p-component p-button-primary ${meta.isSubmitting || !canEdit ? 'p-disabled' : ''}`} onClick={handleClick} disabled={isDisabled || !canEdit}>
+              {meta.isSubmitting ? <i className="pi pi-spin pi-spinner" /> : <i className="pi pi-save" />}
+              <span className="ml-2">{label}</span>
+            </button>
+            {/* tooltip via native title attribute; no inline text */}
+          </div>
         </div>
       </div>
 

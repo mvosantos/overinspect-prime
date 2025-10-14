@@ -55,7 +55,7 @@ export default function ScheduleSection(props?: Props) {
               <Controller control={control} name={`schedules.${idx}.user_id`} render={({ field }) => (
                 <AutoComplete
                   value={resolveAutoCompleteValue<User>(userSuggestions, userCache, field.value, qc, 'user') as User | undefined}
-                  suggestions={userSuggestions}
+                  suggestions={userSuggestions} 
                   field="name"
                   completeMethod={createUserComplete}
                   onChange={makeAutoCompleteOnChange<User>({ setCache: (updater) => wrapSetUserCache(updater), cacheKey: 'user', qc, objectFieldKey: `schedules.${idx}.user`, setFormValue: setValue })(field.onChange)}

@@ -2,10 +2,12 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { Button } from 'primereact/button';
 import { FileUpload } from 'primereact/fileupload';
+import { Tooltip } from 'primereact/tooltip';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import { Dialog } from 'primereact/dialog';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 import AttachmentService from '../services/AttachmentService';
+import serviceOrderStatusService from '../services/serviceOrderStatusService';
 import { useOptionalAttachmentsDrafts } from '../contexts/AttachmentsDraftContext';
 import { Toast } from 'primereact/toast';
 
@@ -39,7 +41,50 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
 
   const attachmentsDrafts = useOptionalAttachmentsDrafts();
 
+  // derive whether attaching is allowed from the current service order status
+  const [canAttach, setCanAttach] = useState<boolean>(true);
+  // subscribe to form values so we react when the order's status or status id changes
+  const watchedStatus = (ctx as any).watch ? (ctx as any).watch('service_order_status') : undefined;
+  const watchedStatusId = (ctx as any).watch ? (ctx as any).watch('service_order_status_id') : undefined;
+
+  useEffect(() => {
+    let mounted = true;
+    try {
+      const status = (ctx as any).getValues('service_order_status') as Record<string, unknown> | undefined;
+      if (status && typeof status === 'object' && 'enable_attach' in status) {
+        if (mounted) setCanAttach(Boolean(status.enable_attach));
+        return;
+      }
+      const statusId = (ctx as any).getValues('service_order_status_id') as string | undefined;
+      if (statusId) {
+        // fetch status metadata as a fallback when the full object isn't present in the form
+        void serviceOrderStatusService.get(statusId).then((data) => {
+          try {
+            const enable = Boolean((data as any)?.enable_attach ?? true);
+            if (mounted) setCanAttach(enable);
+          } catch {
+            if (mounted) setCanAttach(true);
+          }
+        }).catch(() => {
+          if (mounted) setCanAttach(true);
+        });
+        return;
+      }
+      if (mounted) setCanAttach(true);
+    } catch {
+      if (mounted) setCanAttach(true);
+    }
+    return () => { mounted = false; };
+    // watch ensures effect re-runs when these form values change
+  }, [watchedStatus, watchedStatusId, ctx]);
+
   const handleFileSelect = useCallback(async (event: any) => {
+    if (!canAttach) {
+      toast.current?.show({ severity: 'warn', summary: 'Anexar desabilitado', detail: 'Ordem de serviço desabilitada para incluir novos anexos' });
+      // Clear internal fileupload list if any
+  try { if (fileUploadRef.current && typeof fileUploadRef.current.clear === 'function') fileUploadRef.current.clear(); } catch { /* ignore clear errors */ }
+      return;
+    }
     const files: File[] = Array.from(event.files || []);
     if (!files.length) return;
     let success = 0;
@@ -87,7 +132,7 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
     } catch {
       // ignore
     }
-  }, [append, path, attachmentsDrafts, ctx]);
+  }, [append, path, attachmentsDrafts, ctx, canAttach]);
 
   // restore any draft attachments from context when this component mounts
   // avoid duplicating items that are already present (for example restored
@@ -315,10 +360,13 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
 
   return (
     <div>
+  <Tooltip target=".pf-attach-btn" position="right" appendTo={() => document.body} />
       <Toast ref={toast} />
       <div className="mb-3">
         <div className="flex items-center gap-4">
-          <FileUpload ref={fileUploadRef} name={`${name}_uploader`} customUpload uploadHandler={handleFileSelect} multiple accept="*" auto={true} disabled={uploadingCount > 0} />
+          <div className="pf-attach-btn" data-pr-tooltip={!canAttach ? 'Ordem de serviço desabilitada para incluir novos anexos' : undefined}>
+            <FileUpload ref={fileUploadRef} name={`${name}_uploader`} customUpload uploadHandler={handleFileSelect} multiple accept="*" auto={true} disabled={uploadingCount > 0 || !canAttach} />
+          </div>
           {uploadingCount > 0 && (
             <div className="flex items-center gap-2">
               <ProgressSpinner style={{ width: '24px', height: '24px' }} />

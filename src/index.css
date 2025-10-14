@@ -65,3 +65,8 @@
 .dark .p-inputtext::placeholder {
   color: hsl(var(--muted-foreground));
 }
+
+/* Ensure PrimeReact tooltips render above fixed footers and overlays */
+.p-tooltip {
+  z-index: 99999 !important;
+}
