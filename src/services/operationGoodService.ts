@@ -8,7 +8,9 @@ import type { GoodOperation } from '../models/service_order/goods/GoodOperation'
 
 const BASE_PATH = '/operation/good';
 
-export type GoodOperationCreateDto = Omit<GoodOperation, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>;
+// Create/Update DTOs are permissive: most fields are optional because
+// forms typically submit a subset of GoodOperation fields.
+export type GoodOperationCreateDto = Partial<Omit<GoodOperation, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>> & { service_order_id?: string };
 export type GoodOperationUpdateDto = Partial<GoodOperationCreateDto>;
 
 class OperationGoodService implements CrudService<GoodOperation, GoodOperationCreateDto, GoodOperationUpdateDto> {

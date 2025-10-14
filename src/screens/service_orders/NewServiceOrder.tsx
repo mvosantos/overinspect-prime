@@ -853,9 +853,9 @@ export default function NewServiceOrder() {
                 (() => {
                   const cfg = OPERATION_SECTIONS[selectedServiceTypeId as string];
                   if (!cfg) return <div>Operações: Nenhuma section configurada para este tipo de serviço</div>;
-                  switch (cfg.key) {
+                    switch (cfg.key) {
                     case 'goods':
-                      return <GoodsSection currentOrderId={currentOrderId} selectedServiceTypeId={selectedServiceTypeId} />;
+                      return <GoodsSection currentOrderId={currentOrderId} />;
                     case 'tallies':
                       return <TalliesSection currentOrderId={currentOrderId} selectedServiceTypeId={selectedServiceTypeId} />;
                     default:
