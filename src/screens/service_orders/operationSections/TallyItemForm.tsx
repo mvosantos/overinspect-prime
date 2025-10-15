@@ -267,6 +267,8 @@ export default function TallyItemForm({ item, isNew, fieldConfigs, parentStatus,
       } catch {
         // ignore mapping errors
       }
+      // make sure to re-enable the save button when error occurs
+      try { setLocalSubmitting(false); } catch { /* ignore */ }
       toastRef?.current?.show({ severity: 'error', summary: 'Erro', detail: 'Falha ao salvar' });
     }
   });
