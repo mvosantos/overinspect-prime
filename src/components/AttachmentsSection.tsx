@@ -112,7 +112,14 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
         };
         append(item as any);
         if (attachmentsDrafts && typeof attachmentsDrafts.addAttachment === 'function') {
-          attachmentsDrafts.addAttachment((ctx as any).getValues('service_type_id'), item as any);
+          try {
+            const svcId = (ctx as any).getValues('service_type_id');
+            const perKey = `${svcId ?? 'default'}:${String(name)}`;
+            attachmentsDrafts.addAttachment(perKey, item as any);
+          } catch {
+            // fallback to previous behavior
+            attachmentsDrafts.addAttachment((ctx as any).getValues('service_type_id'), item as any);
+          }
         }
         success += 1;
       } catch {
@@ -133,15 +140,18 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
     } catch {
       // ignore
     }
-  }, [append, path, attachmentsDrafts, ctx, canAttach]);
+  }, [append, path, attachmentsDrafts, ctx, canAttach, name]);
 
   // restore any draft attachments from context when this component mounts
-  // avoid duplicating items that are already present (for example restored
-  // via form defaultValues/sessionStorage). We compare by filename+path.
+  // Scope drafts by service_type_id + field name so separate AttachmentsSection
+  // instances (for example readings.*.attachments) don't share the same drafts.
+  // For compatibility we fall back to the service_type_id-only draft if no
+  // per-name draft exists.
   useEffect(() => {
     try {
       const svcId = (ctx as any).getValues('service_type_id');
-      const draft = attachmentsDrafts?.getDraft(svcId) ?? [];
+      const perKey = `${svcId ?? 'default'}:${String(name)}`;
+      const draft = attachmentsDrafts?.getDraft(perKey) ?? attachmentsDrafts?.getDraft(svcId) ?? [];
       if (Array.isArray(draft) && draft.length > 0) {
         // build a set of existing keys to avoid duplicates
         const existing = new Set<string>();
@@ -337,13 +347,16 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
         // local-only, just remove from field array and from draft context if present
         try {
           const svcId = (ctx as any).getValues('service_type_id');
-          if (attachmentsDrafts && typeof attachmentsDrafts.getDraft === 'function') {
-            const draft = attachmentsDrafts.getDraft(svcId) ?? [];
+          if (attachmentsDrafts) {
+            const perKey = `${svcId ?? 'default'}:${String(name)}`;
+            const draft = (typeof attachmentsDrafts.getDraft === 'function') ? (attachmentsDrafts.getDraft(perKey) ?? attachmentsDrafts.getDraft(svcId) ?? []) : [];
             // find by filename+path to compute proper draft index (form index may be offset)
             const key = `${String(file.filename ?? file.name ?? '')}:${String(file.path ?? '')}`;
             const draftIndex = draft.findIndex((d) => `${String((d as any).filename ?? (d as any).name ?? '')}:${String((d as any).path ?? '')}` === key);
             if (draftIndex >= 0 && typeof attachmentsDrafts.removeAttachment === 'function') {
-              attachmentsDrafts.removeAttachment(svcId, draftIndex);
+              // remove from perKey if present, otherwise remove from svcId
+              const removeKey = attachmentsDrafts.getDraft(perKey) ? perKey : svcId;
+              attachmentsDrafts.removeAttachment(removeKey as any, draftIndex);
             }
           }
         } catch {
@@ -359,7 +372,7 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
     } catch (e) {
       if (typeof console !== 'undefined' && typeof console.error === 'function') console.error('delete attachment error', e);
     }
-  }, [getValues, name, remove, attachmentsDrafts, ctx]);
+  }, [getValues, name, remove, attachmentsDrafts, ctx, showUpload]);
 
   return (
     <div>

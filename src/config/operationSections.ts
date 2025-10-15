@@ -18,7 +18,7 @@ const OPERATION_SECTIONS: Record<string, OperationSectionConfig> = {
   'abb07b90-6cb4-46fc-b5d3-f049b42f78f7': {
     key: 'tallies',
     label: 'Tallies',
-    component: 'TalliesSection',
+    component: 'TallySection',
     apiBase: '/operation/tally',
   },
 };

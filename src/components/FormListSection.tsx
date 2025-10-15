@@ -17,11 +17,12 @@ type Props = {
   activeIndexes: number[] | number | null;
   setActiveIndexes: (v: number[] | number | null) => void;
   renderItem: (opts: { item?: unknown; isNew?: boolean; index: number }) => React.ReactNode;
+  titleForItem?: (item: unknown) => string;
   parentEnableEditing?: boolean;
   persistActiveIndexesKey?: string | null;
 };
 
-export default function FormListSection({ title, items, total = 0, page, perPage, setPage, search, setSearch, creatingNew, setCreatingNew, activeIndexes, setActiveIndexes, renderItem, parentEnableEditing = true }: Props) {
+export default function FormListSection({ title, items, total = 0, page, perPage, setPage, search, setSearch, creatingNew, setCreatingNew, activeIndexes, setActiveIndexes, renderItem, titleForItem, parentEnableEditing = true }: Props) {
   const [localSearch, setLocalSearch] = useState(search ?? '');
 
   useEffect(() => { setLocalSearch(search ?? ''); }, [search]);
@@ -36,7 +37,7 @@ export default function FormListSection({ title, items, total = 0, page, perPage
     <div>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          {title ? <div className="font-semibold mr-4">{title}</div> : null}
+          {title ? <div className="mr-4 font-semibold">{title}</div> : null}
           <Button label="Novo" icon="pi pi-plus" onClick={() => setCreatingNew(true)} disabled={!parentEnableEditing} className="p-button-text" />
           <Button label="Expandir todos" onClick={expandAll} className="p-button-text" />
           <Button label="Colapsar" onClick={collapseAll} className="p-button-text" />
@@ -56,13 +57,15 @@ export default function FormListSection({ title, items, total = 0, page, perPage
 
         {items?.map((it: unknown, idx: number) => {
           const rec = it as Record<string, unknown> | undefined;
-          const vesselName = (rec && typeof rec.vessel_name === 'string') ? rec.vessel_name : undefined;
-          const weather = rec && (rec.weather as Record<string, unknown> | undefined);
-          const weatherName = weather && typeof weather.name === 'string' ? ` (${weather.name})` : '';
-          const title = vesselName ? `${vesselName}${weatherName}` : `—${weatherName}`;
           const key = (rec && typeof rec.id === 'string') ? rec.id : String(idx);
+          const itemTitle = typeof titleForItem === 'function' ? titleForItem(it) : (() => {
+            const vesselName = (rec && typeof rec.vessel_name === 'string') ? rec.vessel_name : undefined;
+            const weather = rec && (rec.weather as Record<string, unknown> | undefined);
+            const weatherName = weather && typeof weather.name === 'string' ? ` (${weather.name})` : '';
+            return vesselName ? `${vesselName}${weatherName}` : `—${weatherName}`;
+          })();
           return (
-            <AccordionTab key={key} header={`${(page - 1) * perPage + idx + 1} - ${title}`}>
+            <AccordionTab key={key} header={`${(page - 1) * perPage + idx + 1} - ${itemTitle}`}>
               {renderItem({ item: it, index: idx })}
             </AccordionTab>
           );
