@@ -48,3 +48,22 @@ export const formatShortDateTime = (v: unknown): string => {
   if (!d) return String(v ?? '');
   return format(d, 'dd/MM/yyyy HH:mm');
 };
+
+// Explicit helpers for API payload formatting
+// Date-only (yyyy-MM-dd)
+export const formatDateOnlyForApi = (v: unknown): string | null => {
+  if (!v) return null;
+  const d = tryParseDate(v);
+  if (!d) return null;
+  return format(d, 'yyyy-MM-dd');
+};
+
+// Date+time with seconds (yyyy-MM-dd H:mm:ss)
+// Note: uses single 'H' to match the requested pattern (hour without leading zero).
+export const formatDateTimeForApi = (v: unknown): string | null => {
+  if (!v) return null;
+  const d = tryParseDate(v);
+  if (!d) return null;
+  // Use HH for zero-padded 24-hour format
+  return format(d, 'yyyy-MM-dd HH:mm:ss');
+};

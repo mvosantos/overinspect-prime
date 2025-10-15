@@ -918,6 +918,7 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
                   className="w-full" 
                   value={field.value as Date | null} 
                   onChange={(e: any) => field.onChange(e?.value ?? null)} 
+                  hideOnDateTimeSelect
                 />
               )} 
             />
@@ -939,6 +940,7 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
                   className="w-full" 
                   value={field.value as Date | null} 
                   onChange={(e: any) => field.onChange(e?.value ?? null)} 
+                  hideOnDateTimeSelect
                 />
               )} 
             />
@@ -1133,6 +1135,7 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
                   className="w-full" 
                   value={field.value as Date | null} 
                   onChange={(e: any) => field.onChange(e?.value ?? null)} 
+                  hideOnDateTimeSelect
                 />
               )} 
             />
@@ -1155,6 +1158,7 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
                     className="w-full" 
                     value={field.value as Date | null} 
                     onChange={(e: any) => field.onChange(e?.value ?? null)} 
+                    hideOnDateTimeSelect
                   />
                 )} 
               />
@@ -1177,6 +1181,7 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
                   className="w-full" 
                   value={field.value as Date | null} 
                   onChange={(e: any) => field.onChange(e?.value ?? null)} 
+                  hideOnDateTimeSelect
                 />
               )} 
             />
@@ -1198,6 +1203,7 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
                   className="w-full" 
                   value={field.value as Date | null} 
                   onChange={(e: any) => field.onChange(e?.value ?? null)} 
+                  hideOnDateTimeSelect 
                 />
               )} 
             />
@@ -1219,6 +1225,7 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
                   className="w-full" 
                   value={field.value as Date | null} 
                   onChange={(e: any) => field.onChange(e?.value ?? null)} 
+                  hideOnDateTimeSelect
                 />
               )} 
             />
