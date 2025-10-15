@@ -384,7 +384,11 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const onSave = handleSubmit(async (vals) => {
+    const [localSubmitting, setLocalSubmitting] = useState(false);
+
+  const submitting = localSubmitting || (isNew ? mutationIsLoading(createMutation) : mutationIsLoading(updateMutation));
+
+  const onSave = handleSubmit(async (vals) => {
       try {
         // map named form fields back to API-expected keys
         const payload: any = { ...vals };
@@ -455,6 +459,8 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
         } catch {
           // ignore normalization errors
         }
+        // set local submitting state so UI responds immediately
+        setLocalSubmitting(true);
         if (isNew) {
           await createMutation.mutateAsync(payload);
           toast.current?.show({ severity: 'success', summary: 'Criado', detail: `Registro criado` });
@@ -463,6 +469,7 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
           await updateMutation.mutateAsync({ id: item.id, payload });
           toast.current?.show({ severity: 'success', summary: 'Atualizado', detail: `Registro atualizado` });
         }
+        setLocalSubmitting(false);
       } catch (err: any) {
           // try to map server-side field errors into the form
           try {
@@ -530,7 +537,7 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
           }
           toast.current?.show({ severity: 'error', summary: 'Erro', detail: 'Falha ao salvar' });
         }
-    });
+  });
 
     const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
     const [cancelConfirmVisible, setCancelConfirmVisible] = useState(false);
@@ -1343,13 +1350,17 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
         {/* Botões no final */}
         <div className="flex items-end justify-end gap-2 mt-6">
           <div className="flex gap-2">
-            <Button
-              label={isNew ? (mutationIsLoading(createMutation) ? t('common:saving') : 'Salvar') : (mutationIsLoading(updateMutation) ? t('common:saving') : 'Salvar')}
-              icon="pi pi-save"
+            {/* Save button: show spinner icon + translated label while submitting (match PageFooter behavior) */}
+            <button
+              type="button"
+              aria-label={parentEnableEditing ? (submitting ? t('common:saving') : 'Salvar') : undefined}
+              className={`pf-save-btn p-button p-component p-button-primary ${(!parentEnableEditing || submitting) ? 'p-disabled' : ''}`}
               onClick={onSave}
-              disabled={!parentEnableEditing}
-              loading={isNew ? mutationIsLoading(createMutation) : mutationIsLoading(updateMutation)}
-            />
+              disabled={!parentEnableEditing || submitting}
+            >
+              {submitting ? <i className="pi pi-spin pi-spinner" /> : <i className="pi pi-save" />}
+              <span className="ml-2">{submitting ? t('common:saving') : 'Salvar'}</span>
+            </button>
             {!isNew && (
               <Button label="Excluir" icon="pi pi-trash" className="p-button-danger" onClick={onDelete} disabled={!parentEnableEditing} />
             )}
