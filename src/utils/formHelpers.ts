@@ -63,3 +63,20 @@ export function makeAutoCompleteOnChange<T extends { id?: string }>(opts: {
     }
   };
 }
+
+// Utility to seed a local cache and react-query cache for an object
+export function seedCachedObject<T extends { id?: string }>(
+  obj: T | undefined,
+  id: string | undefined,
+  setCache: SetCacheFn<T>,
+  qc?: QueryClient | undefined,
+  cacheKey?: string,
+) {
+  if (!obj || !id) return;
+  setCache((prev) => ({ ...(prev || {}), [id]: obj }));
+  try {
+    if (qc && cacheKey) qc.setQueryData([cacheKey, id], obj);
+  } catch {
+    // ignore
+  }
+}

@@ -23,7 +23,7 @@ import vesselTypeService from '../../../services/vesselTypeService';
 import weatherService from '../../../services/weatherService';
 import AttachmentsSection from '../../../components/AttachmentsSection';
 import { createAutocompleteComplete } from '../../../utils/autocompleteHelpers';
-import { makeAutoCompleteOnChange, resolveAutoCompleteValue } from '../../../utils/formHelpers';
+import { makeAutoCompleteOnChange, resolveAutoCompleteValue, seedCachedObject } from '../../../utils/formHelpers';
 
 type Props = {
   currentOrderId?: string | null;
@@ -314,19 +314,35 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
     // seed the local cache and react-query cache so AutoComplete shows the name
     useEffect(() => {
       try {
+        // seed cached objects (uses util imported from formHelpers)
+
         const lp = item && (item.loading_port || item.loading_port_id ? (item.loading_port ?? undefined) : undefined);
         const lpId = item && (item.loading_port_id ?? (lp && lp.id)) as string | undefined;
-        if (lp && lpId) {
-          setSiteCache((prev) => ({ ...(prev || {}), [lpId]: lp }));
-          try { qc.setQueryData(['site', lpId], lp); } catch { /* ignore */ }
-        }
+  seedCachedObject(lp, lpId, setSiteCache, qc, 'site');
 
         const dp = item && (item.discharge_port || item.discharge_port_id ? (item.discharge_port ?? undefined) : undefined);
         const dpId = item && (item.discharge_port_id ?? (dp && dp.id)) as string | undefined;
-        if (dp && dpId) {
-          setSiteCache((prev) => ({ ...(prev || {}), [dpId]: dp }));
-          try { qc.setQueryData(['site', dpId], dp); } catch { /* ignore */ }
-        }
+  seedCachedObject(dp, dpId, setSiteCache, qc, 'site');
+
+        // seed vessel type if present
+        const vt = item && (item.vessel_type || item.vessel_type_id ? (item.vessel_type ?? undefined) : undefined);
+        const vtId = item && (item.vessel_type_id ?? (vt && vt.id)) as string | undefined;
+  seedCachedObject(vt, vtId, setVesselTypeCache, qc, 'vesselType');
+
+        // seed loading facility if present (shares site cache)
+        const lf = item && (item.loading_facility || item.loading_facility_id ? (item.loading_facility ?? undefined) : undefined);
+        const lfId = item && (item.loading_facility_id ?? (lf && lf.id)) as string | undefined;
+  seedCachedObject(lf, lfId, setSiteCache, qc, 'site');
+
+        // seed discharge facility if present (shares site cache)
+        const df = item && (item.discharge_facility || item.discharge_facility_id ? (item.discharge_facility ?? undefined) : undefined);
+        const dfId = item && (item.discharge_facility_id ?? (df && df.id)) as string | undefined;
+  seedCachedObject(df, dfId, setSiteCache, qc, 'site');
+
+        // seed weather if present
+        const w = item && (item.weather || item.weather_id ? (item.weather ?? undefined) : undefined);
+        const wId = item && (item.weather_id ?? (w && w.id)) as string | undefined;
+  seedCachedObject(w, wId, setWeatherCache, qc, 'weather');
       } catch {
         // ignore
       }
