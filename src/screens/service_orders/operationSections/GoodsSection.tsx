@@ -432,6 +432,21 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
         payload.service_order_id = currentOrderId;
         // ensure attachments node present
         if (!payload.attachments) payload.attachments = [];
+        // Ensure each attachment includes `filename` matching `name` (backend expects filename attr)
+        try {
+          if (Array.isArray(payload.attachments)) {
+            payload.attachments = payload.attachments.map((att: any) => {
+              if (att && typeof att === 'object') {
+                // prefer name -> filename, fallback to existing filename
+                const filename = att.name ?? att.filename ?? null;
+                return { ...att, filename };
+              }
+              return att;
+            });
+          }
+        } catch {
+          // ignore normalization errors
+        }
         if (isNew) {
           await createMutation.mutateAsync(payload);
           toast.current?.show({ severity: 'success', summary: 'Criado', detail: `Registro criado` });
