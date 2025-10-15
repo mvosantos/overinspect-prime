@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { BreadCrumb } from 'primereact/breadcrumb';
 import { Timeline } from 'primereact/timeline';
@@ -31,7 +31,7 @@ import GoodsSection from './operationSections/GoodsSection';
 import TalliesSection from './operationSections/TalliesSection';
 import PageFooter from '../../components/PageFooter';
 import { useSave } from '../../contexts/SaveContext';
-import { mapServicesSourceToForm, mapPaymentsSourceToForm, mapSchedulesSourceToForm } from '../../utils/formSeedHelpers';
+import { mapServicesSourceToForm, mapSchedulesSourceToForm } from '../../utils/formSeedHelpers';
 
 // Form-level types for items (these represent the shape we send to the API)
 
@@ -56,6 +56,14 @@ export default function NewServiceOrder() {
     return 0;
   });
   type ServiceTypeField = { name: string; label?: string; default_value?: unknown; visible?: boolean; required?: boolean; field_type?: string | null };
+  // Local alias used for casting field-config maps in this file
+  type FieldMetaLocal = ServiceTypeField;
+  // Helper to extract nested object id safely (used in several places while seeding/mapping)
+  const safeId = (obj: unknown): string | undefined => {
+    if (!obj || typeof obj !== 'object') return undefined;
+    const o = obj as { id?: unknown };
+    return typeof o.id === 'string' ? o.id : undefined;
+  };
   const [serviceTypeFields, setServiceTypeFields] = useState<ServiceTypeField[]>([]);
   const [zodSchema, setZodSchema] = useState<z.ZodObject<Record<string, ZodTypeAny>> | null>(null);
   const currentZodRef = useRef<z.ZodTypeAny | null>(null);
@@ -67,10 +75,7 @@ export default function NewServiceOrder() {
   type TimelineItem = { statusName: string; dateVal: string | Date | null; userName?: string; raw?: Record<string, unknown> };
   const [timelineModalVisible, setTimelineModalVisible] = useState(false);
   const [selectedTimelineItem, setSelectedTimelineItem] = useState<TimelineItem | null>(null);
-  const [statusMeta, setStatusMeta] = useState<{ enable_attach?: boolean | null; enable_editing?: boolean | null } | null>(null);
-  const handleStatusMetaChange = useCallback((m: { enable_attach?: boolean | null; enable_editing?: boolean | null } | null) => {
-    setStatusMeta(m);
-  }, []);
+  
   
 
   const { id: routeId } = useParams();
@@ -1139,22 +1144,6 @@ export default function NewServiceOrder() {
                 }
                 {
                   (() => {
-                    const byName: Record<string, ServiceTypeField | undefined> = {};
-                    (serviceTypeFields || []).forEach((f) => { if (f && typeof f === 'object' && 'name' in f) byName[f.name] = f; });
-                    const weighingFieldConfigs = {
-                      weightTypeField: byName['weight_type_id'],
-                      samplingTypeIdField: byName['sampling_type_id'],
-                      weighingRuleField: byName['weighing_rule_id'],
-                      invoiceMetricUnitField: byName['invoice_metric_unit_id'],
-                      grossVolumeInvoiceField: byName['gross_volume_invoice'],
-                      netVolumeInvoiceField: byName['net_volume_invoice'],
-                      tareVolumeInvoiceField: byName['tare_volume_invoice'],
-                      grossVolumeLandedField: byName['gross_volume_landed'],
-                      netVolumeLandedField: byName['net_volume_landed'],
-                      tareVolumeLandedField: byName['tare_volume_landed'],
-                      landingMetricUnitField: byName['landing_metric_unit_id'],
-                    } as Record<string, FieldMetaLocal | undefined>;
-
                     const formErrorsMap: Record<string, string | undefined> = {};
                     Object.entries(formState.errors || {}).forEach(([k, v]) => {
                       const vv = v as unknown;
@@ -1167,7 +1156,7 @@ export default function NewServiceOrder() {
                     });
 
                     return (
-                      <WeighingSection control={control} setValue={setValue} getValues={getValues} selectedServiceTypeId={selectedServiceTypeId} fieldConfigs={weighingFieldConfigs} formErrors={formErrorsMap} />
+                      <WeighingSection control={control} setValue={setValue} getValues={getValues} selectedServiceTypeId={selectedServiceTypeId} serviceTypeFields={serviceTypeFields} formErrors={formErrorsMap} />
                     );
                   })()
                 }
@@ -1221,7 +1210,7 @@ export default function NewServiceOrder() {
                 CUSTOS ENVOLVIDOS
               </span>
             }>
-                <PaymentsSection control={control} setValue={setValue} getValues={getValues} selectedServiceTypeId={selectedServiceTypeId} fields={serviceTypeFields} />
+        <PaymentsSection control={control} setValue={setValue} getValues={getValues} selectedServiceTypeId={selectedServiceTypeId} fields={serviceTypeFields} paySource={paySourceState} />
             </TabPanel>
             <TabPanel header={
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

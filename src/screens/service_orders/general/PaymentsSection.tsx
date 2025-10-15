@@ -23,7 +23,7 @@ type Payment = PaymentsOrderService | FormPaymentItemSubmission;
 import type { FieldMeta } from '../../../utils/formSectionHelpers';
 import { showIfVisible as _showIfVisible, isRequired as _isRequired, paymentsAreaVisible as _paymentsAreaVisible, getErrorMessage as _getErrorMessage, makeFormFieldMapper } from '../../../utils/formSectionHelpers';
 
-type Props = { control?: Control<ServiceOrderSubmission>; setValue?: UseFormSetValue<ServiceOrderSubmission>; getValues?: UseFormGetValues<ServiceOrderSubmission>; selectedServiceTypeId?: string | null; fieldConfigs?: Record<string, unknown> | undefined; formErrors?: Record<string, string | undefined>; fields?: FieldMeta[] };
+type Props = { control?: Control<ServiceOrderSubmission>; setValue?: UseFormSetValue<ServiceOrderSubmission>; getValues?: UseFormGetValues<ServiceOrderSubmission>; selectedServiceTypeId?: string | null; fieldConfigs?: Record<string, unknown> | undefined; formErrors?: Record<string, string | undefined>; fields?: FieldMeta[]; paySource?: PaymentsOrderService[] };
 
 export default function PaymentsSection(props?: Props) {
   const ctx = useFormContext<ServiceOrderSubmission>();
