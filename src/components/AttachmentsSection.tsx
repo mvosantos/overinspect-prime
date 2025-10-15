@@ -33,7 +33,7 @@ type Props = {
 export default function AttachmentsSection({ name = 'attachments', path = 'service_order', showUpload = true }: Props) {
   const ctx = useFormContext();
   const toast = React.useRef<Toast | null>(null);
-  const { control, getValues } = ctx;
+  const { control, getValues } = ctx as any;
   const { fields, append, remove } = useFieldArray({ control: control as any, name: name as any });
   const [uploadingCount, setUploadingCount] = useState(0);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -79,6 +79,27 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
     // watch ensures effect re-runs when these form values change
   }, [watchedStatus, watchedStatusId, ctx]);
 
+  // compute a stable instance key for this AttachmentsSection
+  const computeInstanceKey = useCallback(() => {
+    try {
+      const svcId = (ctx as any).getValues('service_type_id');
+      const nameStr = String(name);
+      const parts = nameStr.split('.');
+      // parent path is everything before the final segment (attachments)
+      const parentPath = parts.slice(0, Math.max(0, parts.length - 1)).join('.');
+      const parent = parentPath ? (ctx as any).getValues(parentPath) : undefined;
+      let ownerId = parent && (parent.id ?? parent.reading_id ?? parent.__attachId);
+      if (!ownerId) {
+        // create a stable local id for this reading so drafts survive index changes
+        ownerId = `local:${Math.random().toString(36).slice(2, 9)}`;
+        try { if (parentPath) (ctx as any).setValue(`${parentPath}.__attachId`, ownerId); } catch { /* ignore */ }
+      }
+      return `${svcId ?? 'default'}:${ownerId}`;
+    } catch {
+      try { return `${(ctx as any).getValues('service_type_id') ?? 'default'}:${String(name)}`; } catch { return `default:${String(name)}`; }
+    }
+  }, [ctx, name]);
+
   const handleFileSelect = useCallback(async (event: any) => {
     if (!canAttach) {
       toast.current?.show({ severity: 'warn', summary: 'Anexar desabilitado', detail: 'Ordem de serviço desabilitada para incluir novos anexos' });
@@ -113,8 +134,7 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
         append(item as any);
         if (attachmentsDrafts && typeof attachmentsDrafts.addAttachment === 'function') {
           try {
-            const svcId = (ctx as any).getValues('service_type_id');
-            const perKey = `${svcId ?? 'default'}:${String(name)}`;
+            const perKey = computeInstanceKey();
             attachmentsDrafts.addAttachment(perKey, item as any);
           } catch {
             // fallback to previous behavior
@@ -140,7 +160,7 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
     } catch {
       // ignore
     }
-  }, [append, path, attachmentsDrafts, ctx, canAttach, name]);
+  }, [append, path, attachmentsDrafts, ctx, canAttach, computeInstanceKey]);
 
   // restore any draft attachments from context when this component mounts
   // Scope drafts by service_type_id + field name so separate AttachmentsSection
@@ -149,8 +169,8 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
   // per-name draft exists.
   useEffect(() => {
     try {
+      const perKey = computeInstanceKey();
       const svcId = (ctx as any).getValues('service_type_id');
-      const perKey = `${svcId ?? 'default'}:${String(name)}`;
       const draft = attachmentsDrafts?.getDraft(perKey) ?? attachmentsDrafts?.getDraft(svcId) ?? [];
       if (Array.isArray(draft) && draft.length > 0) {
         // build a set of existing keys to avoid duplicates
@@ -179,7 +199,7 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
       // ignore
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [append, attachmentsDrafts, name]);
+  }, [append, attachmentsDrafts, computeInstanceKey]);
 
   const handleDownload = useCallback(async (file: AttachmentsOrderService, index?: number) => {
     try {
@@ -348,7 +368,7 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
         try {
           const svcId = (ctx as any).getValues('service_type_id');
           if (attachmentsDrafts) {
-            const perKey = `${svcId ?? 'default'}:${String(name)}`;
+            const perKey = computeInstanceKey();
             const draft = (typeof attachmentsDrafts.getDraft === 'function') ? (attachmentsDrafts.getDraft(perKey) ?? attachmentsDrafts.getDraft(svcId) ?? []) : [];
             // find by filename+path to compute proper draft index (form index may be offset)
             const key = `${String(file.filename ?? file.name ?? '')}:${String(file.path ?? '')}`;
@@ -372,7 +392,7 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
     } catch (e) {
       if (typeof console !== 'undefined' && typeof console.error === 'function') console.error('delete attachment error', e);
     }
-  }, [getValues, name, remove, attachmentsDrafts, ctx, showUpload]);
+  }, [getValues, name, remove, attachmentsDrafts, ctx, showUpload, computeInstanceKey]);
 
   return (
     <div>

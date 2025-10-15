@@ -6,7 +6,7 @@ import type { TallyOperation } from '../models/tallies/TallyOperation';
 
 // Removido: usar ListParams<{ service_order_id?: string }>
 
-const BASE_PATH = '/operation/tally';
+const BASE_PATH = '/operation/tally/web';
 
 export type TallyOperationCreateDto = Omit<TallyOperation, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>;
 export type TallyOperationUpdateDto = Partial<TallyOperationCreateDto>;
@@ -29,7 +29,7 @@ class OperationTallyService implements CrudService<TallyOperation, TallyOperatio
 
   async update(id: string, payload: TallyOperationUpdateDto): Promise<TallyOperation> {
     const res = await api.put(`${BASE_PATH}/${id}`, payload);
-    return res.data;
+    return res.data;  
   }
 
   async remove(id: string): Promise<void> {
