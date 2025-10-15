@@ -5,10 +5,12 @@ import { Dialog } from 'primereact/dialog';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Button } from 'primereact/button';
 import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import serviceOrderStatusService from '../services/serviceOrderStatusService';
 import serviceOrderService from '../services/serviceOrderService';
 import type { ServiceOrder } from '../models/serviceOrder';
 import { Toast } from 'primereact/toast';
+import { Tooltip } from 'primereact/tooltip';
 import { useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -27,13 +29,11 @@ export default function PageFooter({ onSaveClick, label = 'Salvar', currentOrder
   const save = useSave();
   const toast = useRef<Toast | null>(null);
 
-  const [statusOptions, setStatusOptions] = useState<Array<{ label: string; value: string }>>([]);
-  const [fetchedTargets, setFetchedTargets] = useState<Target[]>([]);
-  const [statusMeta, setStatusMeta] = useState<{ enable_attach?: boolean | null; enable_editing?: boolean | null } | null>(null);
+  // derive options directly from query results (no local state)
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [comment, setComment] = useState<string>('');
   const [modalVisible, setModalVisible] = useState(false);
-  const [loadingTargets, setLoadingTargets] = useState(false);
+  // we'll derive loading from react-query
   const queryClient = useQueryClient();
 
   // read meta directly from context on each render; SaveProvider updates its context
@@ -46,78 +46,60 @@ export default function PageFooter({ onSaveClick, label = 'Salvar', currentOrder
 
   const isDisabled = !meta.isValid || meta.isSubmitting;
 
-  // load current status record to find possible targets
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      setLoadingTargets(true);
-      try {
-        let statusIdToUse: string | null = currentStatusId ?? null;
-        // if we don't have currentStatusId but have an order id, fetch the order to derive it
-        if (!statusIdToUse && currentOrderId) {
-          try {
-            const order = await serviceOrderService.get(currentOrderId) as ServiceOrder | null;
-            if (order && typeof order === 'object' && order.service_order_status_id) statusIdToUse = order.service_order_status_id as string;
-          } catch {
-            // ignore
+
+  // Derive the statusId to fetch targets for. Enrich the order with service_order_status
+  // when the order lacks it by fetching the status metadata inside the order query.
+  const orderQuery = useQuery({ queryKey: ['service-order', currentOrderId], queryFn: async () => {
+    if (!currentOrderId) return null;
+    const ord = await serviceOrderService.get(currentOrderId) as ServiceOrder | null;
+    try {
+      if (ord && typeof ord === 'object' && !ord.service_order_status && ord.service_order_status_id) {
+        const statusMeta = await serviceOrderStatusService.get(ord.service_order_status_id as string);
+        const sm = statusMeta as unknown;
+        if (sm && typeof sm === 'object') {
+          const smRec = sm as Record<string, unknown>;
+          const sid = typeof smRec.id === 'string' ? smRec.id : undefined;
+          const sname = typeof smRec.name === 'string' ? smRec.name : undefined;
+          if (sid) {
+            ord.service_order_status = { id: sid, name: sname ?? '' } as import('../models/serviceOrder').ServiceOrderStatus;
           }
         }
-        if (!statusIdToUse) {
-          setFetchedTargets([]);
-          setStatusOptions([]);
-          return;
-        }
-        const data = await serviceOrderStatusService.get(statusIdToUse);
-  if (!mounted) return;
-  const fetched = Array.isArray((data as unknown as Record<string, unknown>)?.service_order_status_targets) ? (data as unknown as Record<string, unknown>).service_order_status_targets as Target[] : [];
-        // extract top-level status meta (enable_attach / enable_editing) if present
-        try {
-          const dm = data as Record<string, unknown> | null;
-          const enableAttach = dm && 'enable_attach' in dm ? (dm?.enable_attach as boolean | undefined) : undefined;
-          const enableEditing = dm && 'enable_editing' in dm ? (dm?.enable_editing as boolean | undefined) : undefined;
-          const metaObj = { enable_attach: enableAttach ?? null, enable_editing: enableEditing ?? null } as { enable_attach?: boolean | null; enable_editing?: boolean | null };
-          // only update state/callback when values actually change to avoid
-          // causing repeated re-renders/remounts elsewhere (TabView/carendar issues)
-          const prev = statusMeta;
-          const changed = !prev || prev.enable_attach !== metaObj.enable_attach || prev.enable_editing !== metaObj.enable_editing;
-          if (changed) {
-            setStatusMeta(metaObj);
-            if (typeof onStatusMetaChange === 'function') onStatusMetaChange(metaObj);
-          }
-        } catch {
-          if (statusMeta !== null) {
-            setStatusMeta(null);
-            if (typeof onStatusMetaChange === 'function') onStatusMetaChange(null);
-          }
-        }
-  setFetchedTargets(fetched);
-        const opts = fetched.map((t) => {
-          const ts = (t as Record<string, unknown>).target_status as Record<string, unknown> | undefined;
-          return { label: (ts?.name as string) ?? '—', value: (ts?.id as string) ?? '' };
-        });
-        setStatusOptions(opts.filter((o: { label: string; value: string }) => Boolean(o.value)));
-      } catch {
-        setFetchedTargets([]);
-        setStatusOptions([]);
-        setStatusMeta(null);
-      } finally {
-        if (mounted) setLoadingTargets(false);
       }
-    };
-    void load();
-    return () => { mounted = false; };
-  }, [currentStatusId, currentOrderId, onStatusMetaChange, statusMeta]);
+    } catch {
+      // ignore fetch errors — we still return the order even if enrichment fails
+    }
+    return ord;
+  }, enabled: Boolean(currentOrderId) });
+
+  const statusIdToFetch = currentStatusId ?? (orderQuery.data as ServiceOrder | null)?.service_order_status_id ?? null;
+
+  const currentStatusName = (orderQuery.data as ServiceOrder | null)?.service_order_status?.name ?? 'Mudar status';
+
+  const canEdit = ((orderQuery.data as ServiceOrder | null)?.service_order_status?.enable_editing ?? true) === true;
+
+  // Query the targets for the given status id
+  const targetsQuery = useQuery({ queryKey: ['service-order-status-targets', statusIdToFetch], queryFn: async () => {
+    if (!statusIdToFetch) return [] as Target[];
+    const data = await serviceOrderStatusService.get(statusIdToFetch);
+    const fetched = Array.isArray((data as unknown as Record<string, unknown>)?.service_order_status_targets) ? (data as unknown as Record<string, unknown>).service_order_status_targets as Target[] : [];
+    return fetched;
+  }, enabled: Boolean(statusIdToFetch) });
+
+  // derive targets and options directly from the query
+  const targets = (targetsQuery.data ?? []) as Target[];
+  const statusOptions = targets.map((t) => {
+    const ts = (t as Record<string, unknown>).target_status as Record<string, unknown> | undefined;
+    return { label: (ts?.name as string) ?? '—', value: (ts?.id as string) ?? '' };
+  }).filter((o) => Boolean(o.value));
 
   // when user selects a status, open modal asking for comment
   useEffect(() => {
-    if (selectedStatus) {
-      setModalVisible(true);
-    }
+    if (selectedStatus) setModalVisible(true);
   }, [selectedStatus]);
 
   const requiresComment = (() => {
     if (!selectedStatus) return false;
-    const found = fetchedTargets.find((t) => ((t.target_status as Record<string, unknown>)?.id as string) === selectedStatus || (t.target_status as Record<string, unknown>)?.id === selectedStatus);
+    const found = targets.find((t) => ((t.target_status as Record<string, unknown>)?.id as string) === selectedStatus || (t.target_status as Record<string, unknown>)?.id === selectedStatus);
     return Boolean(found && ((found.target_status as Record<string, unknown>)?.comment_required ?? false));
   })();
 
@@ -141,11 +123,21 @@ export default function PageFooter({ onSaveClick, label = 'Salvar', currentOrder
       if (serviceTypeId) payload.service_type_id = serviceTypeId;
       return serviceOrderService.update(orderId, payload);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.current?.show({ severity: 'success', summary: 'Sucesso', detail: 'Status alterado' });
       if (currentOrderId) {
         void queryClient.invalidateQueries({ queryKey: ['service-order', currentOrderId] });
         void queryClient.invalidateQueries({ queryKey: ['service-orders'] });
+      }
+      // After changing status, invalidate the targets query for the newly applied status
+      try {
+        if (selectedStatus) {
+          void queryClient.invalidateQueries({ queryKey: ['service-order-status-targets', selectedStatus] });
+        } else {
+          void queryClient.invalidateQueries({ queryKey: ['service-order-status-targets'] });
+        }
+      } catch {
+        // ignore
       }
       setModalVisible(false);
       setSelectedStatus(null);
@@ -170,22 +162,27 @@ export default function PageFooter({ onSaveClick, label = 'Salvar', currentOrder
   // Show save button only when top-level enable_editing is explicitly true
   const showSaveButton = statusMeta?.enable_editing === true;
 
+  const saveTooltip = !canEdit ? 'A solicitação de crédito não pode ser modificada' : (!meta.isValid ? 'O formulário contém erros' : undefined);
+
   return (
     <>
       <Toast ref={toast} position="top-right" />
+      {/* Tooltip attached to the Save button; only shows when there's a message */}
+      <Tooltip target=".pf-save-btn" position="left" appendTo={() => document.body} />
       <div className={`fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between p-3 border-t ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
         <div className="flex items-center gap-2">
           {showStatusDropdown && (
-            <Dropdown value={selectedStatus} options={statusOptions} onChange={(e) => setSelectedStatus(e.value)} placeholder="Mudar status" className="w-48" disabled={loadingTargets || meta.isSubmitting} />
+            <Dropdown value={selectedStatus} options={statusOptions} onChange={(e) => setSelectedStatus(e.value)} placeholder={currentStatusName} className="w-48" disabled={targetsQuery.isLoading || meta.isSubmitting} />
           )}
         </div>
         <div>
-          {showSaveButton && (
-            <button type="button" className={`p-button p-component p-button-primary ${meta.isSubmitting ? 'p-disabled' : ''}`} onClick={handleClick} disabled={isDisabled}>
+          <div className="flex items-center gap-2">
+            <button type="button" data-pr-tooltip={saveTooltip} title={saveTooltip} aria-label={saveTooltip ?? 'Salvar'} className={`pf-save-btn p-button p-component p-button-primary ${meta.isSubmitting || !canEdit ? 'p-disabled' : ''}`} onClick={handleClick} disabled={isDisabled || !canEdit}>
               {meta.isSubmitting ? <i className="pi pi-spin pi-spinner" /> : <i className="pi pi-save" />}
               <span className="ml-2">{label}</span>
             </button>
-          )}
+            {/* tooltip via native title attribute; no inline text */}
+          </div>
         </div>
       </div>
 

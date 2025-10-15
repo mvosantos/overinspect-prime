@@ -63,3 +63,32 @@ export function makeAutoCompleteOnChange<T extends { id?: string }>(opts: {
     }
   };
 }
+
+// Utility to seed a local cache and react-query cache for an object
+export function seedCachedObject<T extends { id?: string }>(
+  obj: T | undefined,
+  id: string | undefined,
+  setCache: SetCacheFn<T>,
+  qc?: QueryClient | undefined,
+  cacheKey?: string,
+) {
+  if (!obj || !id) return;
+  setCache((prev) => ({ ...(prev || {}), [id]: obj }));
+  try {
+    if (qc && cacheKey) qc.setQueryData([cacheKey, id], obj);
+  } catch {
+    // ignore
+  }
+}
+
+// Resolve configured field name (cfg may be undefined)
+export function resolveFieldName(cfg: { name?: string } | undefined, fallback: string) {
+  return cfg?.name ?? fallback;
+}
+
+// Resolve default value for a form field: prefer explicit itemValue, then cfg.default_value, else fallback (or null)
+export function resolveFieldDefault(cfg: { default_value?: unknown } | undefined, itemValue: unknown, fallback?: unknown) {
+  if (itemValue !== undefined && itemValue !== null) return itemValue;
+  if (cfg && cfg.default_value !== undefined) return cfg.default_value;
+  return fallback ?? null;
+}

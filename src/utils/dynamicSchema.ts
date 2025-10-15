@@ -20,9 +20,16 @@ export function buildZodSchemaFromFields(fields: ServiceTypeFieldRaw[]): { schem
     const typeHint = String(f.field_type ?? 'string').toLowerCase();
     let schema: z.ZodTypeAny;
 
-    const isNumeric = typeHint.includes('int') || typeHint === 'number' || typeHint.includes('float') || typeHint.includes('decimal');
-    const isBool = typeHint.includes('bool');
-    const isDate = typeHint.includes('date') || typeHint.includes('time');
+  // Broaden detection: accept many SQL/DB type hints and common variants
+  const numericTokens = ['int', 'number', 'float', 'decimal', 'numeric', 'double', 'real', 'bigint', 'smallint'];
+  const boolTokens = ['bool', 'boolean', 'tinyint', 'bit'];
+  const dateTokens = ['date', 'time', 'datetime', 'timestamp', 'timestamptz'];
+
+  const containsAny = (tokens: string[]) => tokens.some((tok) => typeHint.includes(tok));
+
+  const isNumeric = containsAny(numericTokens);
+  const isBool = containsAny(boolTokens);
+  const isDate = containsAny(dateTokens);
 
     if (isNumeric) {
       schema = z.preprocess((v) => {
@@ -47,14 +54,16 @@ export function buildZodSchemaFromFields(fields: ServiceTypeFieldRaw[]): { schem
       }, effectiveRequired ? z.date() : z.date().optional());
     } else {
       // accept numbers, objects and nulls for string-like fields by coercing to string
-      // NOTE: treat only null/undefined as absent so that empty strings are still
-      // validated by z.string().min(1) when the field is required. Previously
-      // empty string was converted to undefined by the preprocessor which made
-      // zod report 'expected string, received undefined' instead of a clearer
-      // min-length error.
+      // Important: for required string fields we must preserve empty string ('') so
+      // Zod's `min(1)` will produce a clean "campo é obrigatório" message instead
+      // of the generic "expected string, received undefined" that happens when the
+      // preprocess returns undefined.
       schema = z.preprocess((v) => {
+        // null/undefined => undefined (leave as missing)
         if (v == null) return undefined;
-        if (v === '') return '';
+        // empty string: preserve for required fields so `min(1)` triggers;
+        // for optional fields, convert empty string to undefined to allow omission.
+        if (v === '') return f.required ? '' : undefined;
         if (typeof v === 'string') return v;
         // For objects that have a `name` or `id`, prefer `name` if present
         if (typeof v === 'object') {
@@ -168,6 +177,11 @@ export function buildZodSchemaFromFields(fields: ServiceTypeFieldRaw[]): { schem
     shape['services'] = z.array(z.object(itemShape)).optional().default([]);
     defaults['services'] = [];
   }
+
+  // Note: removed ad-hoc compatibility fallbacks previously present here.
+  // The schema generator now relies on broader heuristics above to infer
+  // correct types (numeric/date/bool/string). If a specific field still
+  // requires a custom mapping, add it near the makeSchemaForField logic.
 
   return { schema: z.object(shape) as z.ZodObject<Record<string, z.ZodTypeAny>>, defaults };
 }

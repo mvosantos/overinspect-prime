@@ -8,9 +8,9 @@ import type { ServiceOrderSubmission, FormScheduleItemSubmission, ServiceOrder }
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import userService from '../../../services/userService';
-import { normalizeListResponse } from '../../../utils/apiHelpers';
-import { mapSchedulesSourceToForm } from '../../../utils/formSeedHelpers';
+// normalizeListResponse not needed; using createAutocompleteComplete
 import { makeAutoCompleteOnChange, resolveAutoCompleteValue } from '../../../utils/formHelpers';
+import { createAutocompleteComplete } from '../../../utils/autocompleteHelpers';
 import type { User } from '../../../models/User';
 import { useTranslation } from 'react-i18next';
 
@@ -46,17 +46,7 @@ export default function ScheduleSection(props?: Props) {
   const [userSuggestions, setUserSuggestions] = useState<User[]>([]);
   const [userCache, setUserCache] = useState<Record<string, User>>({});
 
-  const createUserComplete = async (e: { query: string }) => {
-    const q = e.query;
-    try {
-      const res = await userService.list({ per_page: 20, filters: { name: q } });
-      const items = normalizeListResponse<User>(res);
-      setUserSuggestions(items ?? []);
-      (items ?? []).forEach((it) => { if (it?.id) qc.setQueryData(['user', it.id], it); });
-    } catch {
-      setUserSuggestions([]);
-    }
-  };
+  const createUserComplete = createAutocompleteComplete<User>({ listFn: (params) => userService.list(params), qc, cacheKeyRoot: 'user', setSuggestions: setUserSuggestions, setCache: (updater) => setUserCache((prev) => updater(prev)), per_page: 20, filterKey: 'name' });
 
   const wrapSetUserCache = (updater: (prev: Record<string, User>) => Record<string, User>) => setUserCache((prev) => updater(prev));
 
@@ -99,7 +89,7 @@ export default function ScheduleSection(props?: Props) {
               <Controller control={control} name={`schedules.${idx}.user_id`} render={({ field }) => (
                 <AutoComplete
                   value={resolveAutoCompleteValue<User>(userSuggestions, userCache, field.value, qc, 'user') as User | undefined}
-                  suggestions={userSuggestions}
+                  suggestions={userSuggestions} 
                   field="name"
                   completeMethod={createUserComplete}
                   onChange={makeAutoCompleteOnChange<User>({ setCache: (updater) => wrapSetUserCache(updater), cacheKey: 'user', qc, objectFieldKey: `schedules.${idx}.user`, setFormValue: setValue })(field.onChange)}

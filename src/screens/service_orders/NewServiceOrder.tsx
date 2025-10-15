@@ -18,6 +18,7 @@ import WeighingSection from './general/WeighingSection';
 // AttachmentsSection removed — attachments handling moved elsewhere
 import { useForm, FormProvider } from 'react-hook-form';
 import AttachmentsSection from '../../components/AttachmentsSection';
+import { AttachmentsDraftProvider } from '../../contexts/AttachmentsDraftContext';
 import { buildZodSchemaFromFields } from '../../utils/dynamicSchema';
 import z from 'zod';
 import type { ZodTypeAny } from 'zod';
@@ -25,6 +26,9 @@ import { useTranslation } from 'react-i18next';
 import { parseToDateOrOriginal, formatShortDateTime } from '../../utils/dateHelpers';
 import ScheduleSection from './general/ScheduleSection';
 import PaymentsSection from './general/PaymentsSection';
+import OPERATION_SECTIONS from '../../config/operationSections';
+import GoodsSection from './operationSections/GoodsSection';
+import TalliesSection from './operationSections/TalliesSection';
 import PageFooter from '../../components/PageFooter';
 import { useSave } from '../../contexts/SaveContext';
 import { mapServicesSourceToForm, mapPaymentsSourceToForm, mapSchedulesSourceToForm } from '../../utils/formSeedHelpers';
@@ -39,6 +43,18 @@ export default function NewServiceOrder() {
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
   const [selectedServiceTypeId, setSelectedServiceTypeId] = useState<string | null>(null);
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<number>(() => {
+    try {
+      const raw = sessionStorage.getItem('new_service_order:last_tab');
+      if (raw != null) {
+        const n = Number(raw);
+        if (!Number.isNaN(n)) return n;
+      }
+    } catch {
+      // ignore
+    }
+    return 0;
+  });
   type ServiceTypeField = { name: string; label?: string; default_value?: unknown; visible?: boolean; required?: boolean; field_type?: string | null };
   const [serviceTypeFields, setServiceTypeFields] = useState<ServiceTypeField[]>([]);
   const [zodSchema, setZodSchema] = useState<z.ZodObject<Record<string, ZodTypeAny>> | null>(null);
@@ -137,7 +153,27 @@ export default function NewServiceOrder() {
   currentZodRef.current = combinedSchema as z.ZodTypeAny;
 
       // apply defaults to form, ensure services default exists
-      const mergedDefaults = { ...(defaults ?? {}), services: [] };
+      const mergedDefaults = { ...(defaults ?? {}), services: [] } as Record<string, unknown>;
+      try {
+        // load any draft attachments previously saved for this service type so
+        // local uploads survive a remount/navigation away and back.
+        const draftKey = `draft_attachments:${selectedServiceTypeId ?? 'default'}`;
+        const raw = sessionStorage.getItem(draftKey);
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw) as unknown[];
+            // merge only when there are items and the defaults don't already contain attachments
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              mergedDefaults.attachments = parsed;
+            }
+          } catch {
+            // ignore JSON parse errors
+          }
+        }
+      } catch {
+        // sessionStorage may be unavailable in some environments; ignore
+      }
+
       setFormDefaults(mergedDefaults);
       // note: we intentionally do not call reset here because the form is remounted
       // when the selected service type (and schema) changes so the defaults
@@ -165,8 +201,16 @@ export default function NewServiceOrder() {
     // build form-friendly services array using shared helper
     const servicesArr = mapServicesSourceToForm(svcSource as ServiceOrder['services']);
 
-    const paySource: NonNullable<ServiceOrder['payments']> = (Array.isArray(fo.payments) ? fo.payments : []) as NonNullable<ServiceOrder['payments']>;
-    const paymentsArr = mapPaymentsSourceToForm(paySource as ServiceOrder['payments']);
+  const paySource: NonNullable<ServiceOrder['payments']> = (Array.isArray(fo.payments) ? fo.payments : []) as NonNullable<ServiceOrder['payments']>;
+    const paymentsArr = paySource.map((p) => ({
+      id: p?.id,
+      document_type_id: p?.document_type_id ?? safeId(p?.document_type) ?? null,
+      document_number: p?.document_number ?? '',
+      description: p?.description ?? '',
+      unit_price: p?.unit_price ?? '0.00',
+      quantity: p?.quantity ?? '0',
+      total_price: p?.total_price ?? '0.00',
+    }));
 
     const schSource: NonNullable<ServiceOrder['schedules']> = (Array.isArray(fo.schedules) ? fo.schedules : []) as NonNullable<ServiceOrder['schedules']>;
     const schedulesArr = mapSchedulesSourceToForm(schSource as ServiceOrder['schedules']).map((r) => ({ ...r, date: parseDate(r.date) } as unknown as Record<string, unknown>));
@@ -287,45 +331,81 @@ export default function NewServiceOrder() {
 
   const createMutation = useMutation({
     mutationFn: (payload: FormSubmission) => serviceOrderService.createSubmission(payload),
-    onSuccess: (data: ServiceOrder) => {
+    onSuccess: async (data: ServiceOrder) => {
       toast.current?.show({ severity: 'success', summary: 'Sucesso', detail: 'Ordem criada' });
       if (data?.id) setCurrentOrderId(data.id);
-      // replace any temporary attachments in the form with the server-returned list
+      // If the server returned attachments, use them. Otherwise try to fetch
+      // the full saved record to obtain the attachments node (some backends omit it on create).
       try {
         if (data && typeof data === 'object') {
-          // set attachments field so temporary file rows are removed
-          // data.attachments shape should match form field
-          setValue('attachments', (data as ServiceOrder).attachments ?? []);
+          const atts = (data as ServiceOrder).attachments;
+          if (Array.isArray(atts) && atts.length > 0) {
+            setValue('attachments', atts);
+          } else if ((data as ServiceOrder).id) {
+            try {
+              const full = await serviceOrderService.get<ServiceOrder | null>(data.id);
+              if (full && typeof full === 'object' && Array.isArray((full as ServiceOrder).attachments)) {
+                setValue('attachments', (full as ServiceOrder).attachments ?? []);
+              }
+            } catch (e) {
+              // ignore fetch errors — keep temporary attachments in place
+              if (typeof console !== 'undefined' && typeof console.error === 'function') console.error('failed to re-fetch created service order', e);
+            }
+          }
         }
-      } catch {
-        // ignore
+      } catch (e) {
+        if (typeof console !== 'undefined' && typeof console.error === 'function') console.error('create onSuccess processing error', e);
       }
       queryClient.invalidateQueries({ queryKey: ['service-orders'] });
     },
-    onError: (err) => {
-      try { console.error('[NewServiceOrder] createMutation error:', err); } catch { void 0; }
-      toast.current?.show({ severity: 'error', summary: 'Erro', detail: 'Não foi possível criar' });
+    onError: (err: unknown) => {
+      try {
+        const e = err as { message?: string; status?: number; details?: unknown };
+        const msg = e?.message ?? 'Não foi possível criar';
+        toast.current?.show({ severity: 'error', summary: 'Erro', detail: String(msg) });
+        if (typeof console !== 'undefined' && typeof console.error === 'function') console.error('createMutation error', err);
+      } catch {
+        toast.current?.show({ severity: 'error', summary: 'Erro', detail: 'Não foi possível criar' });
+      }
     },
     // rely on mutation.isLoading to reflect loading state
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: FormSubmission }) => serviceOrderService.updateSubmission(id, payload),
-    onSuccess: (data: ServiceOrder) => {
+    onSuccess: async (data: ServiceOrder) => {
       toast.current?.show({ severity: 'success', summary: 'Sucesso', detail: 'Ordem atualizada' });
       if (data?.id) setCurrentOrderId(data.id);
       try {
         if (data && typeof data === 'object') {
-          setValue('attachments', (data as ServiceOrder).attachments ?? []);
+          const atts = (data as ServiceOrder).attachments;
+          if (Array.isArray(atts) && atts.length > 0) {
+            setValue('attachments', atts);
+          } else if ((data as ServiceOrder).id) {
+            try {
+              const full = await serviceOrderService.get<ServiceOrder | null>(data.id);
+              if (full && typeof full === 'object' && Array.isArray((full as ServiceOrder).attachments)) {
+                setValue('attachments', (full as ServiceOrder).attachments ?? []);
+              }
+            } catch (e) {
+              if (typeof console !== 'undefined' && typeof console.error === 'function') console.error('failed to re-fetch updated service order', e);
+            }
+          }
         }
-      } catch {
-        // ignore
+      } catch (e) {
+        if (typeof console !== 'undefined' && typeof console.error === 'function') console.error('update onSuccess processing error', e);
       }
       queryClient.invalidateQueries({ queryKey: ['service-orders'] });
     },
-    onError: (err) => {
-      try { console.error('[NewServiceOrder] updateMutation error:', err); } catch { void 0; }
-      toast.current?.show({ severity: 'error', summary: 'Erro', detail: 'Não foi possível atualizar' });
+    onError: (err: unknown) => {
+      try {
+        const e = err as { message?: string; status?: number; details?: unknown };
+        const msg = e?.message ?? 'Não foi possível atualizar';
+        toast.current?.show({ severity: 'error', summary: 'Erro', detail: String(msg) });
+        if (typeof console !== 'undefined' && typeof console.error === 'function') console.error('updateMutation error', err);
+      } catch {
+        toast.current?.show({ severity: 'error', summary: 'Erro', detail: 'Não foi possível atualizar' });
+      }
     },
     // rely on mutation.isLoading to reflect loading state
   });
@@ -363,11 +443,7 @@ export default function NewServiceOrder() {
   const live = typeof getValues === 'function' ? (getValues() as Record<string, unknown>) : {};
   const submitted = (data && typeof data === 'object') ? (data as Record<string, unknown>) : {};
   const valsForValidation: Record<string, unknown> = { ...(live ?? {}), ...(submitted ?? {}) };
-        // Ensure gross_volume_landed is a string (zod expects string in current schema)
-  if (valsForValidation.gross_volume_landed == null) valsForValidation.gross_volume_landed = '';
-  else valsForValidation.gross_volume_landed = String((valsForValidation as Record<string, unknown>).gross_volume_landed);
-        // Ensure nomination_date is string or empty
-        if (valsForValidation.nomination_date == null) valsForValidation.nomination_date = '';
+  // (removed manual fallbacks for nomination_date and gross_volume_landed — schema handles types now)
         // Ensure business_unit_id and other id fields are present as empty string when undefined or null
         ['operation_type_id', 'packing_type_id', 'client_id', 'subsidiary_id', 'business_unit_id'].forEach((k) => {
           if ((valsForValidation as Record<string, unknown>)[k] == null) (valsForValidation as Record<string, unknown>)[k] = '';
@@ -413,38 +489,79 @@ export default function NewServiceOrder() {
 
         // diagnostics removed in production
 
-        // sanitizeForParse: remove UI-only fields (like fileObject) and coerce
-        // ISO date strings for known date-like keys into Date instances so the
-        // zod preprocessors for dates can accept them.
-  const sanitizeForParse = (v: unknown): unknown => {
-          if (v === null || v === undefined) return v;
-          if (v instanceof Date) return v;
-          if (Array.isArray(v)) return v.map((it) => sanitizeForParse(it));
-          if (typeof v === 'object') {
-            try {
-              const o = v as Record<string, unknown>;
-              // treat plain empty objects as null-like here; deepNormalize will
-              // convert to '' later.
-              if (Object.keys(o).length === 0) return null;
-              const out: Record<string, unknown> = {};
-              Object.entries(o).forEach(([k, val]) => {
-                // strip UI-only fileObjects used for previews
-                if (k === 'fileObject') return;
-                const isDateKey = /(_at$|_date$|^nomination_date$|operation_starts_at$|operation_finishes_at$|bl_date$|cargo_arrival_date$|created_at$|updated_at$)/i.test(k);
-                if (isDateKey && typeof val === 'string' && val.length > 0) {
-                  const d = new Date(val);
-                  out[k] = Number.isNaN(d.getTime()) ? val : d;
-                  return;
+        // Ensure all schema keys exist in the validation snapshot with safe defaults
+        try {
+          const sAny = schema as unknown;
+          let shape: Record<string, unknown> | undefined = undefined;
+          // attempt to access Zod shape in a type-safe way
+          if (sAny && typeof sAny === 'object') {
+            const sObj = sAny as Record<string, unknown>;
+            const def = sObj['_def'] as unknown;
+            if (def && typeof def === 'object') {
+              const defObj = def as Record<string, unknown>;
+              const maybeShape = defObj['shape'] as unknown;
+              if (typeof maybeShape === 'function') {
+                try {
+                  const fn = maybeShape as unknown as (() => Record<string, unknown> | unknown);
+                  const result = fn();
+                  if (result && typeof result === 'object') shape = result as Record<string, unknown>;
+                } catch {
+                  // ignore
                 }
-                out[k] = sanitizeForParse(val);
-              });
-              return out;
-            } catch {
-              return null;
+              } else if (maybeShape && typeof maybeShape === 'object') {
+                shape = maybeShape as Record<string, unknown>;
+              }
             }
           }
-          return v;
-        };
+          if (shape && typeof shape === 'object') {
+            Object.keys(shape).forEach((k) => {
+              // if missing, provide a conservative default: '' for scalars, [] for arrays
+              if ((valsForValidation as Record<string, unknown>)[k] == null) {
+                try {
+                  const node = (shape as Record<string, unknown>)[k] as unknown;
+                  let kind: unknown = undefined;
+                  if (node && typeof node === 'object') {
+                    const nobj = node as Record<string, unknown>;
+                    const ndef = nobj['_def'] as unknown;
+                    if (ndef && typeof ndef === 'object') {
+                      kind = (ndef as Record<string, unknown>)['typeName'];
+                    }
+                  }
+                  if (kind === 'ZodArray') {
+                    (valsForValidation as Record<string, unknown>)[k] = [];
+                  } else {
+                    (valsForValidation as Record<string, unknown>)[k] = '';
+                  }
+                } catch {
+                  (valsForValidation as Record<string, unknown>)[k] = '';
+                }
+              }
+            });
+          }
+        } catch {
+          // ignore shape inspection failures
+        }
+
+        // Also ensure any keys that were provided as form defaults exist (fallback)
+        try {
+          if (formDefaults && typeof formDefaults === 'object') {
+            Object.keys(formDefaults).forEach((k) => {
+              if ((valsForValidation as Record<string, unknown>)[k] == null) {
+                (valsForValidation as Record<string, unknown>)[k] = '';
+              }
+            });
+          }
+        } catch {
+          // ignore
+        }
+
+        // Explicit fallback for known date/number fields that sometimes are missing
+        try {
+          if ((valsForValidation as Record<string, unknown>).nomination_date == null) (valsForValidation as Record<string, unknown>).nomination_date = '';
+          if ((valsForValidation as Record<string, unknown>).gross_volume_landed == null) (valsForValidation as Record<string, unknown>).gross_volume_landed = '';
+        } catch {
+          // ignore
+        }
 
         // Deep-normalize: convert null/undefined to '' and coerce primitives to strings
         const deepNormalizeStrings = (v: unknown): unknown => {
@@ -469,23 +586,120 @@ export default function NewServiceOrder() {
           return v;
         };
 
-        // first run sanitization to remove preview-only artifacts and coerce date
-        // keys to Date objects when possible; then deep-normalize primitives.
-        const sanitized = sanitizeForParse(valsForValidation) as unknown;
-        try {
-          const meta = import.meta as unknown as { env?: { MODE?: string } };
-          const isDev = (meta.env && meta.env.MODE !== 'production') || typeof window !== 'undefined';
-          if (isDev) {
-            try { console.error('[NewServiceOrder] sanitizedForParse:', JSON.stringify(sanitized, (_, v) => {
-              if (v instanceof Date) return v.toISOString();
-              return v;
-            }, 2)); } catch { void 0; }
-          }
-        } catch { /* ignore */ }
+        // Explicitly ensure problematic fields are not undefined so Zod won't complain
+  // removed manual per-field patches — rely on improved dynamic schema
 
-        const normalizedForParse = deepNormalizeStrings(sanitized) as unknown;
-        const parsed = schema.safeParse(normalizedForParse);
-          if (!parsed.success) {
+        // DEBUG: log snapshot and schema shape keys to diagnose persistent Zod failures
+        try {
+          const sv = (valsForValidation as Record<string, unknown>);
+          const keys = Object.keys(sv).slice(0, 200);
+          const nd = { nomination_date: sv.nomination_date, gross_volume_landed: sv.gross_volume_landed };
+          if (typeof console !== 'undefined' && typeof console.info === 'function') console.info('[ZOD PREPARATION] keys:', keys, 'preview:', nd);
+          // if we captured a shape earlier, log its keys too
+          try {
+            const sAny = schema as unknown;
+            if (sAny && typeof sAny === 'object') {
+              const sObj = sAny as Record<string, unknown>;
+              const def = sObj['_def'] as unknown;
+              if (def && typeof def === 'object') {
+                const defObj = def as Record<string, unknown>;
+                const maybeShape = defObj['shape'] as unknown;
+                let shapeKeys: string[] | undefined = undefined;
+                if (typeof maybeShape === 'function') {
+                  try {
+                    const fn = maybeShape as unknown as (() => Record<string, unknown> | unknown);
+                    const result = fn();
+                    if (result && typeof result === 'object') shapeKeys = Object.keys(result as Record<string, unknown>);
+                  } catch {
+                    // ignore
+                  }
+                } else if (maybeShape && typeof maybeShape === 'object') {
+                  shapeKeys = Object.keys(maybeShape as Record<string, unknown>);
+                }
+                if (shapeKeys) console.info('[ZOD PREPARATION] schema keys:', shapeKeys.slice(0,200));
+              }
+            }
+          } catch {
+            // ignore
+          }
+        } catch {
+          // ignore logging issues
+        }
+
+        let normalizedForParse = deepNormalizeStrings(valsForValidation) as unknown;
+        let parsed = schema.safeParse(normalizedForParse);
+        // If we get the specific Zod error about 'expected string, received undefined',
+        // try a single automatic repair: set those keys to '' and re-run validation once.
+        if (!parsed.success) {
+          try {
+            const flat = parsed.error.flatten();
+            const fieldErrs = flat.fieldErrors || {} as Record<string, (string[] | undefined)>;
+            const keysToPatch: string[] = [];
+            Object.entries(fieldErrs).forEach(([k, v]) => {
+              if (Array.isArray(v)) {
+                const hasInvalidInput = v.some((msg) => typeof msg === 'string' && msg.includes('Invalid input: expected'));
+                if (hasInvalidInput) keysToPatch.push(k);
+              }
+            });
+            if (keysToPatch.length > 0) {
+              // Filter keys: only auto-patch those that are NOT marked required in serviceTypeFields
+              const patchable = keysToPatch.filter((k) => {
+                try {
+                  const meta = (serviceTypeFields || []).find((f) => f && typeof f === 'object' && (f as Record<string, unknown>).name === k) as (Record<string, unknown> | undefined);
+                  if (!meta) return true; // no metadata = assume patchable (manual metadata absent)
+                  return !(meta.required === true);
+                } catch {
+                  return true;
+                }
+              });
+              if (patchable.length > 0) {
+                // apply patches to the validation snapshot only for patchable keys
+                patchable.forEach((k) => {
+                  try { (valsForValidation as Record<string, unknown>)[k] = ''; } catch { /* ignore */ }
+                });
+                normalizedForParse = deepNormalizeStrings(valsForValidation) as unknown;
+                parsed = schema.safeParse(normalizedForParse);
+                if (typeof console !== 'undefined' && typeof console.info === 'function') console.info('[ZOD AUTO-PATCH] patched keys:', patchable);
+                try {
+                  toast.current?.show({ severity: 'warn', summary: 'Validação', detail: `Campos não obrigatórios ajustados: ${patchable.join(', ')}`, life: 5000 });
+                } catch {
+                  // ignore toast failures
+                }
+              }
+            }
+          } catch {
+            // ignore repair attempt failures
+          }
+        }
+        if (!parsed.success) {
+          // log detailed zod errors for debugging and show a toast summary
+          try {
+            // Print both formatted and flattened structures to console for easy inspection
+            if (typeof console !== 'undefined' && typeof console.error === 'function') {
+              console.error('[ZOD VALIDATION FAILURE] format:', parsed.error.format());
+              console.error('[ZOD VALIDATION FAILURE] flatten:', parsed.error.flatten());
+            }
+
+            // Show a brief toast with the first few field errors (if any)
+            try {
+              const flatPreview = parsed.error.flatten();
+              const fieldErrorsPreview = flatPreview.fieldErrors ?? {} as Record<string, (string[] | undefined)>;
+              const msgs: string[] = [];
+              Object.entries(fieldErrorsPreview).forEach(([k, v]) => {
+                if (Array.isArray(v) && v.length > 0) msgs.push(`${k}: ${v[0]}`);
+              });
+              if (msgs.length > 0) {
+                toast.current?.show({ severity: 'error', summary: 'Validação', detail: msgs.slice(0, 3).join('; '), life: 8000 });
+              } else {
+                toast.current?.show({ severity: 'error', summary: 'Validação', detail: 'Existem erros de validação no formulário', life: 8000 });
+              }
+            } catch {
+              // ignore toast failures
+            }
+          } catch {
+            // ignore logging errors
+          }
+
           // set form errors where possible and abort submission
             // In dev, log the normalized payload that failed validation so we can inspect it.
             try {
@@ -767,6 +981,61 @@ export default function NewServiceOrder() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
       }, [formState.isValid, isSubmitting, currentZodRef]);
 
+      // Persist attachments to sessionStorage so local uploads survive navigation
+      // persist attachments on unmount; use ref to read latest selectedServiceTypeId so
+      // we avoid having it as a dependency (outer state shouldn't be in hook deps here)
+    const selectedServiceTypeRef = useRef<string | null>(null);
+    // keep ref updated synchronously during render
+    selectedServiceTypeRef.current = selectedServiceTypeId;
+
+      useEffect(() => {
+        try {
+          const unsub = () => {
+            try {
+              const draftKey = `draft_attachments:${selectedServiceTypeRef.current ?? 'default'}`;
+              const att = getValues('attachments');
+              if (Array.isArray(att) && att.length > 0) {
+                // Only persist lightweight fields (filename, name, path); do not persist full File objects
+                const serializable = att.map((a: unknown) => {
+                  try {
+                    const obj = a as Record<string, unknown>;
+                    return {
+                      id: obj.id,
+                      filename: obj.filename,
+                      name: obj.name,
+                      path: obj.path,
+                      created_at: obj.created_at,
+                    };
+                  } catch {
+                    return null;
+                  }
+                }).filter(Boolean);
+                sessionStorage.setItem(draftKey, JSON.stringify(serializable));
+              } else {
+                sessionStorage.removeItem(draftKey);
+              }
+            } catch {
+              // ignore
+            }
+          };
+          return () => unsub();
+        } catch {
+          // ignore sessionStorage errors
+        }
+      }, [getValues]);
+
+      // Clear draft attachments after successful create/update
+      useEffect(() => {
+        if (createMutation.isSuccess || updateMutation.isSuccess) {
+          try {
+            const draftKey = `draft_attachments:${selectedServiceTypeRef.current ?? 'default'}`;
+            sessionStorage.removeItem(draftKey);
+          } catch {
+            // ignore
+          }
+        }
+      }, [createMutation.isSuccess, updateMutation.isSuccess]);
+
     return (
       <FormProvider {...methodsLocal}>
         <div className="relative pb-24 card">
@@ -789,7 +1058,20 @@ export default function NewServiceOrder() {
 
           
 
-          <TabView>
+          {/* Persist last active tab in sessionStorage so switching windows/tabs doesn't reset it */}
+          {/* Controlled via state so clicks change tab immediately; value is initialized from sessionStorage */}
+          <TabView
+            activeIndex={activeTab}
+            onTabChange={(e: { index: number }) => {
+              try {
+                const idx = typeof e.index === 'number' ? e.index : 0;
+                setActiveTab(idx);
+                sessionStorage.setItem('new_service_order:last_tab', String(idx));
+              } catch {
+                // ignore
+              }
+            }}
+          >
             <TabPanel header={
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <i className="pi pi-file" />
@@ -857,6 +1139,22 @@ export default function NewServiceOrder() {
                 }
                 {
                   (() => {
+                    const byName: Record<string, ServiceTypeField | undefined> = {};
+                    (serviceTypeFields || []).forEach((f) => { if (f && typeof f === 'object' && 'name' in f) byName[f.name] = f; });
+                    const weighingFieldConfigs = {
+                      weightTypeField: byName['weight_type_id'],
+                      samplingTypeIdField: byName['sampling_type_id'],
+                      weighingRuleField: byName['weighing_rule_id'],
+                      invoiceMetricUnitField: byName['invoice_metric_unit_id'],
+                      grossVolumeInvoiceField: byName['gross_volume_invoice'],
+                      netVolumeInvoiceField: byName['net_volume_invoice'],
+                      tareVolumeInvoiceField: byName['tare_volume_invoice'],
+                      grossVolumeLandedField: byName['gross_volume_landed'],
+                      netVolumeLandedField: byName['net_volume_landed'],
+                      tareVolumeLandedField: byName['tare_volume_landed'],
+                      landingMetricUnitField: byName['landing_metric_unit_id'],
+                    } as Record<string, FieldMetaLocal | undefined>;
+
                     const formErrorsMap: Record<string, string | undefined> = {};
                     Object.entries(formState.errors || {}).forEach(([k, v]) => {
                       const vv = v as unknown;
@@ -869,11 +1167,11 @@ export default function NewServiceOrder() {
                     });
 
                     return (
-                      <WeighingSection control={control} setValue={setValue} getValues={getValues} selectedServiceTypeId={selectedServiceTypeId} serviceTypeFields={serviceTypeFields} formErrors={formErrorsMap} />
+                      <WeighingSection control={control} setValue={setValue} getValues={getValues} selectedServiceTypeId={selectedServiceTypeId} fieldConfigs={weighingFieldConfigs} formErrors={formErrorsMap} />
                     );
                   })()
                 }
-                <AttachmentsSection name="attachments" path="service_order" showUpload={statusMeta?.enable_attach === true} />
+                <AttachmentsSection name="attachments" path="service_order" />
               </div>
             </TabPanel>
             <TabPanel
@@ -884,7 +1182,28 @@ export default function NewServiceOrder() {
                 </span>
               }
             >
-              <div>Operações (aparecerá somente após criação/edição)</div>
+              {selectedServiceTypeId && currentOrderId ? (
+                (() => {
+                  const cfg = OPERATION_SECTIONS[selectedServiceTypeId as string];
+                  if (!cfg) return <div>Operações: Nenhuma section configurada para este tipo de serviço</div>;
+                    switch (cfg.key) {
+                    case 'goods': {
+                      const byName: Record<string, ServiceTypeField | undefined> = {};
+                      (serviceTypeFields || []).forEach((f) => { if (f && typeof f === 'object' && 'name' in f) byName[f.name] = f; });
+                      const goodsFieldConfigs = {
+                        goods_vessel_loading_port_id: byName['goods_vessel_loading_port_id'],
+                      } as Record<string, FieldMetaLocal | undefined>;
+                      return <GoodsSection currentOrderId={currentOrderId} fieldConfigs={goodsFieldConfigs} />;
+                    }
+                    case 'tallies':
+                      return <TalliesSection currentOrderId={currentOrderId} selectedServiceTypeId={selectedServiceTypeId} />;
+                    default:
+                      return <div>Operações: seção desconhecida</div>;
+                  }
+                })()
+              ) : (
+                <div>Operações (aparecerá somente após criação/edição)</div>
+              )}
             </TabPanel>
 
             <TabPanel header={
@@ -902,38 +1221,7 @@ export default function NewServiceOrder() {
                 CUSTOS ENVOLVIDOS
               </span>
             }>
-              {(() => {
-                // Build a simple lookup by service_type_field.name for explicit mapping.
-                const byName: Record<string, ServiceTypeField | undefined> = {};
-                (serviceTypeFields || []).forEach((f) => { if (f && typeof f === 'object' && 'name' in f) byName[f.name] = f; });
-
-                // PaymentsSection computes its own PAYMENT_FIELD_NAMES mapping from
-                // the provided `serviceTypeFields`. We only pass serviceTypeFields
-                // and formErrors below.
-
-                const formErrorsMap: Record<string, string | undefined> = {};
-                Object.entries(formState.errors || {}).forEach(([k, v]) => {
-                  const vv = v as unknown;
-                  if (vv && typeof vv === 'object' && 'message' in (vv as Record<string, unknown>)) {
-                    const m = (vv as Record<string, unknown>).message;
-                    formErrorsMap[k] = typeof m === 'string' ? m : undefined;
-                  } else {
-                    formErrorsMap[k] = undefined;
-                  }
-                });
-
-                return (
-                  <PaymentsSection
-                    control={control}
-                    setValue={setValue}
-                    getValues={getValues}
-                    selectedServiceTypeId={selectedServiceTypeId}
-                    serviceTypeFields={serviceTypeFields}
-                    formErrors={formErrorsMap}
-                    paySource={paySourceState}
-                  />
-                );
-              })()}
+                <PaymentsSection control={control} setValue={setValue} getValues={getValues} selectedServiceTypeId={selectedServiceTypeId} fields={serviceTypeFields} />
             </TabPanel>
             <TabPanel header={
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -979,7 +1267,9 @@ export default function NewServiceOrder() {
           update when the selected service type changes. */}
       <div>
         {(!isEditing || (isEditing && zodSchema && currentOrderId)) ? (
-          <FormWrapper key={selectedServiceTypeId ?? 'default'} />
+          <AttachmentsDraftProvider>
+            <FormWrapper key={selectedServiceTypeId ?? 'default'} />
+          </AttachmentsDraftProvider>
         ) : (
           <div className="p-4">
             <Skeleton width="100%" height="2rem" className="mb-4" />
@@ -987,9 +1277,11 @@ export default function NewServiceOrder() {
           </div>
         )}
         {/* footer shows when a service type is selected (keep previous UX): PageFooter now triggers SaveContext */}
-  {selectedServiceTypeId && <PageFooter currentOrderId={currentOrderId} currentStatusId={(formDefaults && (formDefaults.service_order_status && (formDefaults.service_order_status as Record<string, unknown>).id) as string) ?? undefined} onStatusMetaChange={handleStatusMetaChange} />}
-    {/* propagate status meta to control attachments upload visibility inside form */}
+  {selectedServiceTypeId && activeTab !== 1 && (
+    <PageFooter currentOrderId={currentOrderId} currentStatusId={(formDefaults && (formDefaults.service_order_status && (formDefaults.service_order_status as Record<string, unknown>).id) as string) ?? undefined} />
+  )}
       </div>
     </div>
   );
 }
+                                                                                                                                                                         

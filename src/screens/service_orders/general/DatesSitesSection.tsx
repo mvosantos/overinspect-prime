@@ -5,8 +5,9 @@ import { AutoComplete } from 'primereact/autocomplete';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import siteService from '../../../services/siteService';
-import { normalizeListResponse } from '../../../utils/apiHelpers';
 import { makeAutoCompleteOnChange, resolveAutoCompleteValue } from '../../../utils/formHelpers';
+import { createAutocompleteComplete } from '../../../utils/autocompleteHelpers';
+import { showIfVisible as _showIfVisible } from '../../../utils/formSectionHelpers';
 import type { Site } from '../../../models/Site';
 import { Controller } from 'react-hook-form';
 import type { Control, UseFormGetValues, UseFormSetValue } from 'react-hook-form';
@@ -80,38 +81,14 @@ export default function DatesSitesSection({
   const getAutoCompleteValue = (suggestions: Site[], fieldValue: unknown) => resolveAutoCompleteValue<Site>(suggestions, undefined, fieldValue, qc, 'site');
   const makeOnChange = (fieldKey: string) => makeAutoCompleteOnChange<Site>({ objectFieldKey: fieldKey, setFormValue: setValue, cacheKey: 'site', qc });
 
+  const onFirstSiteComplete = createAutocompleteComplete<Site>({ listFn: siteService.list, qc, cacheKeyRoot: 'site', setSuggestions: setFirstSiteSuggestions, setCache: undefined, per_page: 20, filterKey: 'name' });
+  const onSecondSiteComplete = createAutocompleteComplete<Site>({ listFn: siteService.list, qc, cacheKeyRoot: 'site', setSuggestions: setSecondSiteSuggestions, setCache: undefined, per_page: 20, filterKey: 'name' });
+  const onThirdSiteComplete = createAutocompleteComplete<Site>({ listFn: siteService.list, qc, cacheKeyRoot: 'site', setSuggestions: setThirdSiteSuggestions, setCache: undefined, per_page: 20, filterKey: 'name' });
+  const onStuffingSiteComplete = createAutocompleteComplete<Site>({ listFn: siteService.list, qc, cacheKeyRoot: 'site', setSuggestions: setStuffingSiteSuggestions, setCache: undefined, per_page: 20, filterKey: 'name' });
+  const onDepartureSiteComplete = createAutocompleteComplete<Site>({ listFn: siteService.list, qc, cacheKeyRoot: 'site', setSuggestions: setDepartureSiteSuggestions, setCache: undefined, per_page: 20, filterKey: 'name' });
 
-  const createSiteCompleteHandler = (setSuggestions: (s: Site[]) => void) => async (event: { query: string }) => {
-    const q = event.query;
-    try {
-      const res = await siteService.list({ per_page: 20, filters: { name: q } });
-      const items = normalizeListResponse<Site>(res);
-      setSuggestions(items ?? []);
-      (items ?? []).forEach((it) => { if (it?.id) qc.setQueryData(['site', it.id], it); });
-    } catch {
-      setSuggestions([]);
-    }
-  };
-
-  const onFirstSiteComplete = createSiteCompleteHandler(setFirstSiteSuggestions);
-  const onSecondSiteComplete = createSiteCompleteHandler(setSecondSiteSuggestions);
-  const onThirdSiteComplete = createSiteCompleteHandler(setThirdSiteSuggestions);
-  const onStuffingSiteComplete = createSiteCompleteHandler(setStuffingSiteSuggestions);
-  const onDepartureSiteComplete = createSiteCompleteHandler(setDepartureSiteSuggestions);
-
-  const hasVisibleFields =
-    operationStartsAtField?.visible ||
-    blDateField?.visible ||
-    cargoArrivalDateField?.visible ||
-    operationFinishesAtField?.visible ||
-    operationFinishDateField?.visible ||
-    firstSiteIdField?.visible ||
-    secondSiteIdField?.visible ||
-    thirdSiteIdField?.visible ||
-    stuffingSiteIdField?.visible ||
-    departureSiteIdField?.visible ||
-    destinationField?.visible;
-
+  const showIf = _showIfVisible(Object.values(fieldConfigs as Record<string, FieldMeta | undefined>).map((f) => f ?? { name: '', visible: false } as FieldMeta));
+  const hasVisibleFields = showIf('operation_starts_at') || showIf('bl_date') || showIf('cargo_arrival_date') || showIf('operation_finishes_at') || showIf('operation_finish_date') || showIf('first_site_id') || showIf('second_site_id') || showIf('third_site_id') || showIf('stuffing_site_id') || showIf('departure_site_id') || showIf('destination');
   if (!hasVisibleFields) return null;
 
   return (
