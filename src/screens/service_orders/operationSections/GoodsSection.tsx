@@ -377,6 +377,31 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
         const w = item && (item.weather || item.weather_id ? (item.weather ?? undefined) : undefined);
         const wId = item && (item.weather_id ?? (w && w.id)) as string | undefined;
   seedCachedObject(w, wId, setWeatherCache, qc, 'weather');
+        // If only an id is present for site-like objects (loading/discharge ports/facilities),
+        // try to fetch the object so the AutoComplete can show the name immediately.
+        try {
+          const fetchIfMissing = async (id?: string | undefined) => {
+            if (!id) return;
+            try {
+              const existing = qc.getQueryData(['site', id]);
+              if (existing) return;
+              const fetched = await siteService.get(id);
+              if (fetched && typeof fetched === 'object') {
+                setSiteCache((prev) => ({ ...(prev || {}), [id]: fetched }));
+                try { qc.setQueryData(['site', id], fetched); } catch { /* ignore */ }
+              }
+            } catch {
+              // ignore fetch errors
+            }
+          };
+          // loading port / discharge port / loading facility / discharge facility ids
+          void fetchIfMissing(lpId as string | undefined);
+          void fetchIfMissing(dpId as string | undefined);
+          void fetchIfMissing(lfId as string | undefined);
+          void fetchIfMissing(dfId as string | undefined);
+        } catch {
+          // ignore
+        }
       } catch {
         // ignore
       }
@@ -616,17 +641,20 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
                 control={control} 
                 name={loadingPortFieldName} 
                 defaultValue={goodsVesselLoadingPortField?.default_value} 
-                render={({ field }) => (
-                  <AutoComplete
-                    value={resolveAutoCompleteValue<any>(siteSuggestions, siteCache, field.value, qc, 'site') as any}
-                    suggestions={siteSuggestions}
-                    field="name"
-                    completeMethod={createSiteComplete}
-                    onChange={makeAutoCompleteOnChange<any>({ setCache: (updater) => setSiteCache((prev) => updater(prev)), cacheKey: 'site', qc })(field.onChange)}
-                    dropdown
-                    className="w-full"
-                  />
-                )} 
+                render={({ field }) => {
+                  const displayValue = item && item.loading_port ? item.loading_port : field.value;
+                  return (
+                    <AutoComplete
+                      value={resolveAutoCompleteValue<any>(siteSuggestions, siteCache, displayValue, qc, 'site') as any}
+                      suggestions={siteSuggestions}
+                      field="name"
+                      completeMethod={createSiteComplete}
+                      onChange={makeAutoCompleteOnChange<any>({ setCache: (updater) => setSiteCache((prev) => updater(prev)), cacheKey: 'site', qc })(field.onChange)}
+                      dropdown
+                      className="w-full"
+                    />
+                  );
+                }} 
               />
               {((form.formState && (form.formState.errors as Record<string, any>)) || {})[loadingPortFieldName]?.message && (
                 <small className="p-error">{((form.formState && (form.formState.errors as Record<string, any>)) || {})[loadingPortFieldName].message}</small>
@@ -645,17 +673,20 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
                 control={control} 
                 name={loadingFacilityFieldName} 
                 defaultValue={goodsLoadingFacilityField?.default_value} 
-                render={({ field }) => (
-                  <AutoComplete
-                    value={resolveAutoCompleteValue<any>(siteSuggestions, siteCache, field.value, qc, 'site') as any}
-                    suggestions={siteSuggestions}
-                    field="name"
-                    completeMethod={createSiteComplete}
-                    onChange={makeAutoCompleteOnChange<any>({ setCache: (updater) => setSiteCache((prev) => updater(prev)), cacheKey: 'site', qc })(field.onChange)}
-                    dropdown
-                    className="w-full"
-                  />
-                )} 
+                render={({ field }) => {
+                  const displayValue = item && item.loading_facility ? item.loading_facility : field.value;
+                  return (
+                    <AutoComplete
+                      value={resolveAutoCompleteValue<any>(siteSuggestions, siteCache, displayValue, qc, 'site') as any}
+                      suggestions={siteSuggestions}
+                      field="name"
+                      completeMethod={createSiteComplete}
+                      onChange={makeAutoCompleteOnChange<any>({ setCache: (updater) => setSiteCache((prev) => updater(prev)), cacheKey: 'site', qc })(field.onChange)}
+                      dropdown
+                      className="w-full"
+                    />
+                  );
+                }} 
               />
               {((form.formState && (form.formState.errors as Record<string, any>)) || {})[loadingFacilityFieldName]?.message && (
                 <small className="p-error">{((form.formState && (form.formState.errors as Record<string, any>)) || {})[loadingFacilityFieldName].message}</small>
@@ -673,17 +704,20 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
                 control={control} 
                 name={dischargePortFieldName} 
                 defaultValue={goodsVesselDischargePortField?.default_value} 
-                render={({ field }) => (
-                  <AutoComplete
-                    value={resolveAutoCompleteValue<any>(siteSuggestions, siteCache, field.value, qc, 'site') as any}
-                    suggestions={siteSuggestions}
-                    field="name"
-                    completeMethod={createSiteComplete}
-                    onChange={makeAutoCompleteOnChange<any>({ setCache: (updater) => setSiteCache((prev) => updater(prev)), cacheKey: 'site', qc })(field.onChange)}
-                    dropdown
-                    className="w-full"
-                  />
-                )} 
+                render={({ field }) => {
+                  const displayValue = item && item.discharge_port ? item.discharge_port : field.value;
+                  return (
+                    <AutoComplete
+                      value={resolveAutoCompleteValue<any>(siteSuggestions, siteCache, displayValue, qc, 'site') as any}
+                      suggestions={siteSuggestions}
+                      field="name"
+                      completeMethod={createSiteComplete}
+                      onChange={makeAutoCompleteOnChange<any>({ setCache: (updater) => setSiteCache((prev) => updater(prev)), cacheKey: 'site', qc })(field.onChange)}
+                      dropdown
+                      className="w-full"
+                    />
+                  );
+                }} 
               />
               {((form.formState && (form.formState.errors as Record<string, any>)) || {})[dischargePortFieldName]?.message && (
                 <small className="p-error">{((form.formState && (form.formState.errors as Record<string, any>)) || {})[dischargePortFieldName].message}</small>
@@ -701,17 +735,20 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
                 control={control} 
                 name={dischargeFacilityFieldName} 
                 defaultValue={goodsDischargeFacilityField?.default_value} 
-                render={({ field }) => (
-                  <AutoComplete
-                    value={resolveAutoCompleteValue<any>(siteSuggestions, siteCache, field.value, qc, 'site') as any}
-                    suggestions={siteSuggestions}
-                    field="name"
-                    completeMethod={createSiteComplete}
-                    onChange={makeAutoCompleteOnChange<any>({ setCache: (updater) => setSiteCache((prev) => updater(prev)), cacheKey: 'site', qc })(field.onChange)}
-                    dropdown
-                    className="w-full"
-                  />
-                )} 
+                render={({ field }) => {
+                  const displayValue = item && item.discharge_facility ? item.discharge_facility : field.value;
+                  return (
+                    <AutoComplete
+                      value={resolveAutoCompleteValue<any>(siteSuggestions, siteCache, displayValue, qc, 'site') as any}
+                      suggestions={siteSuggestions}
+                      field="name"
+                      completeMethod={createSiteComplete}
+                      onChange={makeAutoCompleteOnChange<any>({ setCache: (updater) => setSiteCache((prev) => updater(prev)), cacheKey: 'site', qc })(field.onChange)}
+                      dropdown
+                      className="w-full"
+                    />
+                  );
+                }} 
               />
               {((form.formState && (form.formState.errors as Record<string, any>)) || {})[dischargeFacilityFieldName]?.message && (
                 <small className="p-error">{((form.formState && (form.formState.errors as Record<string, any>)) || {})[dischargeFacilityFieldName].message}</small>
@@ -1005,7 +1042,6 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
               render={({ field }) => (
                 <Calendar 
                   showIcon 
-                  dateFormat="dd/mm/yy" 
                   showTime 
                   hourFormat="24" 
                   className="w-full" 
