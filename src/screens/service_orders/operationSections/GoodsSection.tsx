@@ -97,7 +97,26 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [creatingNew, setCreatingNew] = useState(false);
-  const [activeIndexes, setActiveIndexes] = useState<number[] | number | null>(null);
+  const storageKey = (() => `goods_section:active_indexes:${currentOrderId ?? 'global'}`)();
+  const [activeIndexes, setActiveIndexesState] = useState<number[] | number | null>(() => {
+    try {
+      const raw = sessionStorage.getItem(storageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed ?? null;
+    } catch {
+      return null;
+    }
+  });
+  const setActiveIndexes = useCallback((v: number[] | number | null) => {
+    try {
+      if (v == null) sessionStorage.removeItem(storageKey);
+      else sessionStorage.setItem(storageKey, JSON.stringify(v));
+    } catch {
+      // ignore
+    }
+    setActiveIndexesState(v);
+  }, [storageKey]);
 
   // debounce search
   useEffect(() => {
@@ -169,7 +188,7 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
   const goodsSurveyorLeftTerminalField = fieldConfigs ? fieldConfigs['goods_surveyor_left_terminal'] : undefined;
 
   // helper to open/close all (defined after items so it can reference them)
-  const collapseAll = useCallback(() => setActiveIndexes(null), []);
+  const collapseAll = useCallback(() => setActiveIndexes(null), [setActiveIndexes]);
   const expandAll = useCallback(() => {
     const totalItems = items.length + (creatingNew ? 1 : 0);
     setActiveIndexes(Array.from({ length: totalItems }, (_, i) => i));
@@ -1286,11 +1305,12 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button label="Novo" icon="pi pi-plus" onClick={() => { setCreatingNew(true); setActiveIndexes((prev) => {
+          <Button label="Novo" icon="pi pi-plus" onClick={() => {
+            setCreatingNew(true);
             // open the new top panel (index 0)
-            if (Array.isArray(prev)) return [0, ...prev];
-            return [0];
-          }); }} disabled={!parentEnableEditing} />
+            const next = Array.isArray(activeIndexes) ? [0, ...activeIndexes] : [0];
+            setActiveIndexes(next);
+          }} disabled={!parentEnableEditing} />
 
           <Button label="Expandir todos" onClick={expandAll} className="p-button-text" />
 
@@ -1298,7 +1318,7 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
         </div>
       </div>
 
-      <Accordion multiple activeIndex={activeIndexes} onTabChange={(e: any) => setActiveIndexes(e.index)}>
+  <Accordion multiple activeIndex={activeIndexes} onTabChange={(e: { index: number | number[] | null }) => setActiveIndexes(e.index as number[] | number | null)}>
         {creatingNew && (
           <AccordionTab header={`0 - Novo registro`}>
             <GoodItemForm isNew />
