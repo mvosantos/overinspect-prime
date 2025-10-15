@@ -443,6 +443,14 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
               }
               return att;
             });
+            // Only send attachments that are new (no `id`) to the attachments creation node.
+            // Persisted attachments (which already have an `id`) should not be re-sent as new records
+            // because that causes duplicate attachments to be created on the backend.
+            try {
+              payload.attachments = payload.attachments.filter((att: any) => !att || !att.id).map((att: any) => ({ ...att }));
+            } catch {
+              // ignore filtering errors
+            }
           }
         } catch {
           // ignore normalization errors
@@ -1331,10 +1339,26 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
             <Button label="Sim, cancelar" className="p-button-secondary" onClick={() => { setCancelConfirmVisible(false); setCreatingNew(false); }} />
           </div>
         </Dialog>
+
+        {/* Botões no final */}
+        <div className="flex items-end justify-end gap-2 mt-6">
+          <div className="flex gap-2">
+            <Button
+              label={isNew ? (mutationIsLoading(createMutation) ? t('common:saving') : 'Salvar') : (mutationIsLoading(updateMutation) ? t('common:saving') : 'Salvar')}
+              icon="pi pi-save"
+              onClick={onSave}
+              disabled={!parentEnableEditing}
+              loading={isNew ? mutationIsLoading(createMutation) : mutationIsLoading(updateMutation)}
+            />
+            {!isNew && (
+              <Button label="Excluir" icon="pi pi-trash" className="p-button-danger" onClick={onDelete} disabled={!parentEnableEditing} />
+            )}
+            {isNew && (
+              <Button label="Cancelar" icon="pi pi-times" className="p-button-text" onClick={() => setCancelConfirmVisible(true)} />
+            )}
+          </div>
+        </div>
       </div>
-
-        
-
     </FormProvider>
   );
 }
