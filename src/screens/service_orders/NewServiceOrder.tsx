@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { BreadCrumb } from 'primereact/breadcrumb';
 import { Timeline } from 'primereact/timeline';
@@ -23,7 +23,7 @@ import { buildZodSchemaFromFields } from '../../utils/dynamicSchema';
 import z from 'zod';
 import type { ZodTypeAny } from 'zod';
 import { useTranslation } from 'react-i18next';
-import { formatForPayload, parseToDateOrOriginal, formatShortDateTime } from '../../utils/dateHelpers';
+import { parseToDateOrOriginal, formatShortDateTime } from '../../utils/dateHelpers';
 import ScheduleSection from './general/ScheduleSection';
 import PaymentsSection from './general/PaymentsSection';
 import OPERATION_SECTIONS from '../../config/operationSections';
@@ -31,6 +31,7 @@ import GoodsSection from './operationSections/GoodsSection';
 import TalliesSection from './operationSections/TalliesSection';
 import PageFooter from '../../components/PageFooter';
 import { useSave } from '../../contexts/SaveContext';
+import { mapServicesSourceToForm, mapPaymentsSourceToForm, mapSchedulesSourceToForm } from '../../utils/formSeedHelpers';
 
 // Form-level types for items (these represent the shape we send to the API)
 
@@ -55,14 +56,21 @@ export default function NewServiceOrder() {
     return 0;
   });
   type ServiceTypeField = { name: string; label?: string; default_value?: unknown; visible?: boolean; required?: boolean; field_type?: string | null };
-  type FieldMetaLocal = { name: string; visible?: boolean; required?: boolean; default_value?: unknown };
   const [serviceTypeFields, setServiceTypeFields] = useState<ServiceTypeField[]>([]);
   const [zodSchema, setZodSchema] = useState<z.ZodObject<Record<string, ZodTypeAny>> | null>(null);
   const currentZodRef = useRef<z.ZodTypeAny | null>(null);
   const [formDefaults, setFormDefaults] = useState<Record<string, unknown>>({});
+  // raw server sources used to seed per-section arrays when editing
+  const [svcSourceState, setSvcSourceState] = useState<ServiceOrder['services']>([]);
+  const [paySourceState, setPaySourceState] = useState<ServiceOrder['payments']>([]);
+  const [schSourceState, setSchSourceState] = useState<ServiceOrder['schedules']>([]);
   type TimelineItem = { statusName: string; dateVal: string | Date | null; userName?: string; raw?: Record<string, unknown> };
   const [timelineModalVisible, setTimelineModalVisible] = useState(false);
   const [selectedTimelineItem, setSelectedTimelineItem] = useState<TimelineItem | null>(null);
+  const [statusMeta, setStatusMeta] = useState<{ enable_attach?: boolean | null; enable_editing?: boolean | null } | null>(null);
+  const handleStatusMetaChange = useCallback((m: { enable_attach?: boolean | null; enable_editing?: boolean | null } | null) => {
+    setStatusMeta(m);
+  }, []);
   
 
   const { id: routeId } = useParams();
@@ -186,20 +194,12 @@ export default function NewServiceOrder() {
     // parse incoming date-like values to Date when possible, otherwise keep original
     const parseDate = (v: unknown) => parseToDateOrOriginal(v);
 
-    const safeId = (obj: unknown): string | undefined => {
-      if (!obj || typeof obj !== 'object') return undefined;
-      const o = obj as { id?: unknown };
-      return typeof o.id === 'string' ? o.id : undefined;
-    };
+    // helper(s) previously used to extract nested ids have been moved to
+    // formSeedHelpers; local extraction here is no longer needed.
 
-  const svcSource: NonNullable<ServiceOrder['services']> = (Array.isArray(fo.services) ? fo.services : []) as NonNullable<ServiceOrder['services']>;
-    const servicesArr = svcSource.map((s) => ({
-      service_id: s?.service_id ?? safeId(s?.service) ?? null,
-      unit_price: s?.unit_price ?? '0.00',
-      quantity: s?.quantity ?? '0',
-      total_price: s?.total_price ?? '0.00',
-      scope: s?.scope ?? '',
-    }));
+    const svcSource: NonNullable<ServiceOrder['services']> = (Array.isArray(fo.services) ? fo.services : []) as NonNullable<ServiceOrder['services']>;
+    // build form-friendly services array using shared helper
+    const servicesArr = mapServicesSourceToForm(svcSource as ServiceOrder['services']);
 
   const paySource: NonNullable<ServiceOrder['payments']> = (Array.isArray(fo.payments) ? fo.payments : []) as NonNullable<ServiceOrder['payments']>;
     const paymentsArr = paySource.map((p) => ({
@@ -212,12 +212,8 @@ export default function NewServiceOrder() {
       total_price: p?.total_price ?? '0.00',
     }));
 
-  const schSource: NonNullable<ServiceOrder['schedules']> = (Array.isArray(fo.schedules) ? fo.schedules : []) as NonNullable<ServiceOrder['schedules']>;
-    const schedulesArr = schSource.map((s) => ({
-      id: s?.id,
-      user_id: s?.user_id ?? safeId(s?.user) ?? null,
-      date: parseDate(s?.date),
-    }));
+    const schSource: NonNullable<ServiceOrder['schedules']> = (Array.isArray(fo.schedules) ? fo.schedules : []) as NonNullable<ServiceOrder['schedules']>;
+    const schedulesArr = mapSchedulesSourceToForm(schSource as ServiceOrder['schedules']).map((r) => ({ ...r, date: parseDate(r.date) } as unknown as Record<string, unknown>));
 
   const attachmentsArr = Array.isArray(fo.attachments) ? fo.attachments : [];
 
@@ -287,6 +283,11 @@ export default function NewServiceOrder() {
 
     // merge fetched values into current defaults (do not set selectedServiceTypeId here;
     // that is handled in the separate effect above to avoid a circular dependency)
+  // store raw server arrays so child sections can use them directly if needed
+  try { setSvcSourceState(svcSource); } catch { /* ignore */ }
+  try { setPaySourceState(paySource); } catch { /* ignore */ }
+  try { setSchSourceState(schSource); } catch { /* ignore */ }
+
     setFormDefaults((prev) => ({ ...(prev ?? {}), ...finalDefaults }));
   }, [isEditing, fetchedServiceOrder, zodSchema, queryClient]);
 
@@ -428,6 +429,10 @@ export default function NewServiceOrder() {
 
   const onSubmitLocal = handleSubmit((data) => {
     // Manual zod validation: use the current schema (if any) to validate before building payload.
+    // canonicalForBuild will hold the validated/coerced data (or fallback) and
+    // must be visible after the validation block so we can build the final
+    // payload from the same source that passed validation.
+    let canonicalForBuild: Record<string, unknown> | undefined;
     try {
       const schema = currentZodRef.current as z.ZodTypeAny | null;
       if (schema && typeof schema.safeParse === 'function') {
@@ -461,6 +466,23 @@ export default function NewServiceOrder() {
               total_price: pp.total_price == null ? '0.00' : String(pp.total_price),
             };
           });
+          // Extra coercion pass to be defensive: ensure all descriptions are strings
+          try {
+            if (Array.isArray((valsForValidation as Record<string, unknown>).payments)) {
+              const arr = (valsForValidation as Record<string, unknown>).payments as unknown[];
+              (valsForValidation as Record<string, unknown>).payments = arr.map((pp: unknown) => {
+                if (!pp || typeof pp !== 'object') return { description: '' };
+                const ppr = pp as Record<string, unknown>;
+                ppr.description = ppr.description == null ? '' : String(ppr.description);
+                ppr.unit_price = ppr.unit_price == null ? '0.00' : String(ppr.unit_price);
+                ppr.quantity = ppr.quantity == null ? '0' : String(ppr.quantity);
+                ppr.total_price = ppr.total_price == null ? '0.00' : String(ppr.total_price);
+                return ppr;
+              });
+            }
+          } catch {
+            // ignore defensive coercion errors
+          }
         } catch {
           // ignore
         }
@@ -545,14 +567,18 @@ export default function NewServiceOrder() {
         const deepNormalizeStrings = (v: unknown): unknown => {
           if (v === null || v === undefined) return '';
           if (Array.isArray(v)) return v.map((it) => deepNormalizeStrings(it));
+          if (v instanceof Date) return v;
           if (typeof v === 'object') {
             try {
               const o = v as Record<string, unknown>;
+              // treat plain empty objects as empty strings to avoid zod receiving {}
+              // for date-like or primitive fields
+              if (Object.keys(o).length === 0) return '';
               const out: Record<string, unknown> = {};
               Object.keys(o).forEach((k) => { out[k] = deepNormalizeStrings(o[k]); });
               return out;
             } catch {
-              return v;
+              return '';
             }
           }
           // primitives (number, boolean, string) -> keep as-is but ensure string for numbers/booleans
@@ -675,11 +701,41 @@ export default function NewServiceOrder() {
           }
 
           // set form errors where possible and abort submission
-          try {
-            // diagnostics removed: we still map errors to the form below
-          } catch {
-            // ignore
-          }
+            // In dev, log the normalized payload that failed validation so we can inspect it.
+            try {
+              const meta = import.meta as unknown as { env?: { MODE?: string } };
+              const isDev = (meta.env && meta.env.MODE !== 'production') || typeof window !== 'undefined';
+              if (isDev) {
+                const safeStringify = (obj: unknown) => {
+                  const seen = new WeakSet();
+                  return JSON.stringify(obj, function (_k, v) {
+                    // skip circular
+                    if (typeof v === 'object' && v !== null) {
+                      if (seen.has(v as object)) return '[Circular]';
+                      seen.add(v as object);
+                    }
+                    // mask File/Blob/
+                    try {
+                      if (v instanceof File) return `[File: ${v.name}]` as unknown;
+                    } catch {
+                      // ignore instanceof failures in some environments
+                    }
+                    if (typeof v === 'function') return `[Function:${((v as unknown) as { name?: string }).name || 'fn'}]` as unknown;
+                    return v;
+                  }, 2);
+                };
+                try { console.error('[NewServiceOrder] normalizedForParse:', safeStringify(normalizedForParse)); } catch { void 0; }
+                try {
+                  // log zod error details to help diagnose which fields failed
+                  const errFlat = parsed.error.flatten();
+                  try { console.error('[NewServiceOrder] zod safeParse errors (flatten):', JSON.stringify(errFlat, null, 2)); } catch { console.error('[NewServiceOrder] zod safeParse errors (flatten)', errFlat); }
+                } catch {
+                  try { console.error('[NewServiceOrder] zod safeParse error:', parsed.error); } catch { void 0; }
+                }
+              }
+            } catch {
+              // ignore
+            }
           const flat = parsed.error.flatten();
           const fieldErrors = flat.fieldErrors || {} as Record<string, (string[] | undefined)>;
           Object.entries(fieldErrors).forEach(([k, v]) => {
@@ -696,6 +752,10 @@ export default function NewServiceOrder() {
           });
           return;
         }
+        // Prefer the parsed/coerced output as the canonical source for building the
+        // final submission payload. This prevents a timing/snapshot mismatch where
+        // the object validated by zod differs from the one later serialized.
+        canonicalForBuild = (parsed && parsed.success) ? parsed.data as Record<string, unknown> : (normalizedForParse as Record<string, unknown>);
       }
     } catch {
       // ignore zod validation errors and proceed; server-side validation will catch issues
@@ -707,13 +767,18 @@ export default function NewServiceOrder() {
     return typeof o.id === 'string' ? o.id : undefined;
   };
 
-  // Build a fresh submission payload from form scalar values and normalized arrays.
+  // Build a fresh submission payload from the canonical validated/coerced values
+  // (preferred) or fall back to the submitted `data` snapshot. This ensures the
+  // payload reflects exactly what passed validation.
   const payload: FormSubmission = {} as FormSubmission;
-  // copy scalar values from submitted data (avoid indexing into ServiceOrder)
-  if (data && typeof data === 'object') {
+  if (canonicalForBuild && typeof canonicalForBuild === 'object') {
+    Object.entries(canonicalForBuild).forEach(([k, v]) => {
+      if (['services', 'payments', 'schedules', 'attachments', 'service_order_status_history'].includes(k)) return;
+      (payload as Record<string, unknown>)[k] = v;
+    });
+  } else if (data && typeof data === 'object') {
     const dat = data as Record<string, unknown>;
     Object.entries(dat).forEach(([k, v]) => {
-      // arrays/attachments are handled below
       if (['services', 'payments', 'schedules', 'attachments', 'service_order_status_history'].includes(k)) return;
       (payload as Record<string, unknown>)[k] = v;
     });
@@ -721,22 +786,10 @@ export default function NewServiceOrder() {
       // ensure service_type_id is present
       if (selectedServiceTypeId) payload.service_type_id = selectedServiceTypeId;
 
-      // serialize dates using centralized helper
-      const formatDateForPayload = (v: unknown) => formatForPayload(v);
+      // Date formatting for top-level payload keys is handled by ServiceOrderService
+      // (applyDateFormatting) to centralize server-specific formatting rules.
 
-      // apply formatting for any date-like keys
-      try {
-        Object.keys(payload).forEach((k) => {
-          if (!k) return;
-          if (k.endsWith('_at') || k.endsWith('_date') || k === 'operation_starts_at' || k === 'operation_finishes_at') {
-            const val = (payload as Record<string, unknown>)[k];
-            const formatted = formatDateForPayload(val);
-            (payload as Record<string, unknown>)[k] = formatted;
-          }
-        });
-      } catch {
-        // ignore any formatting errors
-      }
+      // Weight/volume formatting is handled by ServiceOrderService before submit.
 
       // ensure num_containers is numeric or undefined
       if ((payload as Record<string, unknown>).num_containers !== undefined && (payload as Record<string, unknown>).num_containers !== null) {
@@ -744,8 +797,10 @@ export default function NewServiceOrder() {
         (payload as Record<string, unknown>).num_containers = Number.isFinite(n) ? n : undefined;
       }
 
-      // Normalize services array if present (use form values)
-      const maybeServices = getValues('services') as FormServiceItem[] | undefined;
+      // Normalize services array if present (prefer canonicalForBuild values when available)
+      const maybeServices = (canonicalForBuild && Array.isArray((canonicalForBuild as Record<string, unknown>).services))
+        ? ((canonicalForBuild as Record<string, unknown>).services as FormServiceItem[])
+        : (getValues('services') as FormServiceItem[] | undefined);
       const toFixed2 = (v: unknown) => {
         const n = Number(String(v ?? 0));
         return Number.isFinite(n) ? n.toFixed(2) : '0.00';
@@ -767,8 +822,10 @@ export default function NewServiceOrder() {
       };
       payload.services = buildServices(maybeServices);
 
-      // Normalize payments array if present (or take from form if not present)
-      const paymentsFromForm = getValues('payments') as FormPaymentItem[] | undefined;
+      // Normalize payments array if present (prefer canonicalForBuild.payments when available)
+      const paymentsFromForm = (canonicalForBuild && Array.isArray((canonicalForBuild as Record<string, unknown>).payments))
+        ? ((canonicalForBuild as Record<string, unknown>).payments as FormPaymentItem[])
+        : (getValues('payments') as FormPaymentItem[] | undefined);
       const buildPayments = (arr?: FormPaymentItem[] | undefined) => {
         if (!Array.isArray(arr)) return [] as FormPaymentItem[];
         return arr.map((p) => {
@@ -777,7 +834,8 @@ export default function NewServiceOrder() {
           const totalNum = Number(String(p.total_price ?? (unitNum * qtyNum)));
           return {
             id: (p.id as string) ?? undefined,
-            description: (p.description as string) ?? '',
+            // Ensure description is always a string (use empty string when falsy)
+            description: (p.description == null || p.description === undefined) ? '' : String((p.description as unknown)),
             document_type_id: (p.document_type_id as string) ?? null,
             document_number: (p.document_number as string) ?? '',
             unit_price: !Number.isNaN(unitNum) ? Number(unitNum).toFixed(2) : '0.00',
@@ -825,11 +883,74 @@ export default function NewServiceOrder() {
         payload.schedules = [];
       }
 
+        // Schedules date formatting is delegated to ServiceOrderService.applyDateFormatting
+
   // submission starting — diagnostics removed
+        // In dev, log the final payload we are about to send (mask files and avoid circulars)
+        try {
+          const meta = import.meta as unknown as { env?: { MODE?: string } };
+          const isDev = (meta.env && meta.env.MODE !== 'production') || typeof window !== 'undefined';
+          if (isDev) {
+            const safeStringify = (obj: unknown) => {
+              const seen = new WeakSet();
+              return JSON.stringify(obj, function (_k, v) {
+                if (typeof v === 'object' && v !== null) {
+                  if (seen.has(v as object)) return '[Circular]';
+                  seen.add(v as object);
+                }
+                try {
+                  const vv = v as unknown;
+                  if (vv && typeof vv === 'object' && ((vv as Record<string, unknown>)['objectURL'])) return '[FileObject]';
+                } catch {
+                  // ignore
+                }
+                return v;
+              }, 2);
+            };
+            try { console.error('[NewServiceOrder] finalPayload:', safeStringify(payload)); } catch { void 0; }
+          }
+        } catch {
+          // ignore dev logging failures
+        }
+
+        // Final normalization for the API: preserve Date instances (service will
+        // format them), convert undefined/null to explicit null, and recurse
+        // arrays/objects so the shape is predictable for logging and the service.
+        const normalizeForApi = (v: unknown): unknown => {
+          if (v === undefined || v === null) return null;
+          // keep Date instances as-is; serviceOrderService will format dates
+          if (v instanceof Date) return v;
+          if (Array.isArray(v)) return v.map((it) => normalizeForApi(it));
+          if (typeof v === 'number' || typeof v === 'boolean') return v;
+          if (typeof v === 'string') return v;
+          if (typeof v === 'object') {
+            try {
+              const o = v as Record<string, unknown>;
+              const out: Record<string, unknown> = {};
+              Object.entries(o).forEach(([k, val]) => {
+                out[k] = normalizeForApi(val);
+              });
+              return out;
+            } catch {
+              return null;
+            }
+          }
+          try { return String(v); } catch { return null; }
+        };
+
+        const finalPayload = normalizeForApi(payload) as unknown as FormSubmission;
+        try {
+          const meta = import.meta as unknown as { env?: { MODE?: string } };
+          const isDev = (meta.env && meta.env.MODE !== 'production') || typeof window !== 'undefined';
+          if (isDev) {
+            try { console.error('[NewServiceOrder] finalPayload:', JSON.stringify(finalPayload, null, 2)); } catch { void 0; }
+          }
+        } catch { /* ignore logging fail */ }
+
         if (isEditing && routeId) {
-          updateMutation.mutate({ id: routeId, payload });
+          updateMutation.mutate({ id: routeId, payload: finalPayload });
         } else {
-          createMutation.mutate(payload);
+          createMutation.mutate(finalPayload);
         }
     });
     // Register the save handler so the global footer can trigger this form's submit
@@ -988,26 +1109,10 @@ export default function NewServiceOrder() {
                     })()}
                   </>
                 )}
-                <GeneralDataSection serviceTypeId={selectedServiceTypeId} fields={serviceTypeFields} register={register} control={control} errors={formState.errors} setValue={setValue} />
-                <ServicesSection control={control} setValue={setValue} getValues={getValues} selectedServiceTypeId={selectedServiceTypeId} />
+                <GeneralDataSection serviceTypeId={selectedServiceTypeId} fields={serviceTypeFields} register={register} control={control} errors={formState.errors} setValue={setValue} serviceTypeFields={serviceTypeFields} />
+                <ServicesSection control={control} setValue={setValue} getValues={getValues} selectedServiceTypeId={selectedServiceTypeId} serviceTypeFields={serviceTypeFields} svcSource={svcSourceState} />
                 {
                   (() => {
-                    const byName: Record<string, ServiceTypeField | undefined> = {};
-                    (serviceTypeFields || []).forEach((f) => { if (f && typeof f === 'object' && 'name' in f) byName[f.name] = f; });
-                    const fieldConfigs = {
-                      operationStartsAtField: byName['operation_starts_at'],
-                      blDateField: byName['bl_date'],
-                      cargoArrivalDateField: byName['cargo_arrival_date'],
-                      operationFinishesAtField: byName['operation_finishes_at'],
-                      operationFinishDateField: byName['operation_finish_date'],
-                      firstSiteIdField: byName['first_site_id'],
-                      secondSiteIdField: byName['second_site_id'],
-                      thirdSiteIdField: byName['third_site_id'],
-                      stuffingSiteIdField: byName['stuffing_site_id'],
-                      departureSiteIdField: byName['departure_site_id'],
-                      destinationField: byName['destination'],
-                    } as Record<string, FieldMetaLocal | undefined>;
-
                     const formErrorsMap: Record<string, string | undefined> = {};
                     Object.entries(formState.errors || {}).forEach(([k, v]) => {
                       const vv = v as unknown;
@@ -1026,7 +1131,7 @@ export default function NewServiceOrder() {
                         setValue={setValue}
                         selectedServiceType={selectedServiceTypeId}
                         t={t}
-                        fieldConfigs={fieldConfigs}
+                        serviceTypeFields={serviceTypeFields}
                         formErrors={formErrorsMap}
                       />
                     );
@@ -1107,7 +1212,8 @@ export default function NewServiceOrder() {
                 DESIGNAÇÕES E AGENDAMENTOS
               </span>
             }>
-              <ScheduleSection control={control} setValue={setValue} getValues={getValues} selectedServiceTypeId={selectedServiceTypeId} />
+                <ScheduleSection control={control} setValue={setValue} getValues={getValues} selectedServiceTypeId={selectedServiceTypeId} serviceTypeFields={serviceTypeFields} schSource={schSourceState} />
+                
             </TabPanel>
             <TabPanel header={
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

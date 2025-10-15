@@ -27,10 +27,11 @@ export function SaveProvider({ children }: { children: ReactNode }) {
 
   const registerSaveHandler = (h: () => void, getters?: { getIsValid?: () => boolean; getIsSubmitting?: () => boolean }) => {
     const prev = handlerRef.current;
-  const next = { handler: h, getIsValid: getters?.getIsValid, getIsSubmitting: getters?.getIsSubmitting } as SaveHandlerRecord;
-  const sameHandler = prev?.handler === (next as NonNullable<SaveHandlerRecord>).handler;
-  const sameGetIsValid = prev?.getIsValid === (next as NonNullable<SaveHandlerRecord>).getIsValid;
-  const sameGetIsSubmitting = prev?.getIsSubmitting === (next as NonNullable<SaveHandlerRecord>).getIsSubmitting;
+    const next = { handler: h, getIsValid: getters?.getIsValid, getIsSubmitting: getters?.getIsSubmitting } as SaveHandlerRecord;
+    const nextNonNull = next as NonNullable<SaveHandlerRecord>;
+    const sameHandler = prev?.handler === nextNonNull.handler;
+    const sameGetIsValid = prev?.getIsValid === nextNonNull.getIsValid;
+    const sameGetIsSubmitting = prev?.getIsSubmitting === nextNonNull.getIsSubmitting;
     handlerRef.current = next;
     if (!prev || !sameHandler || !sameGetIsValid || !sameGetIsSubmitting) {
       setMetaVersion((v) => v + 1);

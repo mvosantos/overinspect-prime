@@ -27,9 +27,10 @@ type Props = {
   name?: string; // form field name (default: 'attachments')
   path?: string; // path used for presign (default: 'service_order')
   allowPreview?: boolean;
+  showUpload?: boolean;
 };
 
-export default function AttachmentsSection({ name = 'attachments', path = 'service_order' }: Props) {
+export default function AttachmentsSection({ name = 'attachments', path = 'service_order', showUpload = true }: Props) {
   const ctx = useFormContext();
   const toast = React.useRef<Toast | null>(null);
   const { control, getValues } = ctx;
@@ -327,6 +328,8 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
   }, [previewUrl, previewName]);
 
   const handleRemove = useCallback(async (index: number) => {
+    // prevent removal when uploads/attachments are disabled by status meta
+    if (!showUpload) return;
     const file = getValues(name)[index] as AttachmentsOrderService;
     if (!file) return;
     try {
@@ -398,7 +401,9 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
                   )}
                   <Button icon="pi pi-eye" className="p-button-text" onClick={() => handlePreview(f as any, idx)} disabled={previewLoading} />
                   <Button icon="pi pi-download" className="p-button-text" onClick={() => handleDownload(f as any, idx)} />
-                  <Button icon="pi pi-trash" className="p-button-text p-button-danger" onClick={() => handleRemove(idx)} />
+                  {showUpload ? (
+                    <Button icon="pi pi-trash" className="p-button-text p-button-danger" onClick={() => handleRemove(idx)} />
+                  ) : null}
                 </div>
               </li>
             ))}

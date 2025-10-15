@@ -3,16 +3,28 @@ import TopMenu from '../components/TopMenu';
 import { useTheme } from '../hooks/useTheme';
 import { PermissionProvider } from '../contexts/PermissionContext';
 import { SaveProvider } from '../contexts/SaveContext';
+import React from 'react';
 
-// Debug console removed from production code
+// Dynamic dev-only debug console
+function useDevDebugConsole() {
+  const [Comp, setComp] = React.useState<null | React.ComponentType>(null);
+  React.useEffect(() => {
+    const meta = import.meta as unknown as { env?: { MODE?: string } };
+    const isDev = (meta.env && meta.env.MODE !== 'production') || typeof window !== 'undefined';
+    if (!isDev) return;
+    void import('../components/DebugConsole').then((m) => setComp(() => m.default)).catch(() => {});
+  }, []);
+  return Comp;
+}
 
 type AuthLayoutProps = {
   children: ReactNode;
 };
 
   const AuthLayout = ({ children }: AuthLayoutProps) => {
-    const { theme, setTheme } = useTheme();
-    return (
+  const { theme, setTheme } = useTheme();
+  const DebugConsole = useDevDebugConsole();
+  return (
       <PermissionProvider>
         <SaveProvider>
           <div>
@@ -20,7 +32,7 @@ type AuthLayoutProps = {
             <div>
               {children}
             </div>
-            {/* dev DebugConsole removed */}
+            {DebugConsole ? <DebugConsole /> : null}
           </div>
         </SaveProvider>
       </PermissionProvider>

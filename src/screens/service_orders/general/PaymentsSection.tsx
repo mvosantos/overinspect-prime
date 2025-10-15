@@ -6,15 +6,16 @@ import { InputNumber } from 'primereact/inputnumber';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import type { Control, UseFormSetValue, UseFormGetValues } from 'react-hook-form';
 import type { ServiceOrderSubmission, FormPaymentItemSubmission } from '../../../models/serviceOrder';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 // import { normalizeListResponse } from '../../../utils/apiHelpers';
 import { createAutocompleteComplete } from '../../../utils/autocompleteHelpers';
 import { makeAutoCompleteOnChange, resolveAutoCompleteValue } from '../../../utils/formHelpers';
 import documentTypeService from '../../../services/documentTypeService';
 import type { DocumentType } from '../../../models/DocumentType';
-import type { PaymentsOrderService } from '../../../models/serviceOrder';
+import type { PaymentsOrderService, ServiceOrder } from '../../../models/serviceOrder';
 import { useTranslation } from 'react-i18next';
+import { mapPaymentsSourceToForm } from '../../../utils/formSeedHelpers';
 
 
 type Payment = PaymentsOrderService | FormPaymentItemSubmission;
@@ -32,9 +33,24 @@ export default function PaymentsSection(props?: Props) {
   const { t } = useTranslation(['new_service_order', 'service_orders']);
   const qc = useQueryClient();
 
-  const payments: FormPaymentItemSubmission[] = (useWatch({ control, name: 'payments' }) as FormPaymentItemSubmission[] | undefined) ?? [];
+  const rawPayments = (useWatch({ control, name: 'payments' }) as FormPaymentItemSubmission[] | undefined) ?? [];
+  const payments: FormPaymentItemSubmission[] = (() => rawPayments)();
   const watchedServiceTypeId = useWatch({ control, name: 'service_type_id' }) as string | undefined;
   const serviceTypeId = props?.selectedServiceTypeId ?? watchedServiceTypeId;
+
+  // debug: log payments when they change (development only)
+  useEffect(() => {
+    try {
+      const meta = import.meta as unknown as { env?: { MODE?: string } };
+      const isDev = (meta.env && meta.env.MODE !== 'production') || typeof window !== 'undefined';
+      if (isDev) {
+        try { console.debug('[PaymentsSection] payments:', payments); } catch { console.log('[PaymentsSection] payments (fallback):', payments); }
+      }
+    } catch {
+      // fallback: always log if something goes wrong detecting env
+      try { console.log('[PaymentsSection] payments:', payments); } catch { /* ignore */ }
+    }
+  }, [payments]);
 
   const [docTypeSuggestions, setDocTypeSuggestions] = useState<DocumentType[]>([]);
   const [docTypeCache, setDocTypeCache] = useState<Record<string, DocumentType>>({});
@@ -86,6 +102,21 @@ export default function PaymentsSection(props?: Props) {
     }, 0);
     return total;
   }
+
+  // pre-seed when parent provided a raw payments source (edit mode)
+  useEffect(() => {
+    try {
+      if (!props?.paySource || !Array.isArray(props.paySource)) return;
+      // if form already has payments, don't overwrite
+      const existing = (getValues?.('payments') as FormPaymentItemSubmission[] | undefined) ?? [];
+      if (Array.isArray(existing) && existing.length > 0) return;
+      const mapped = mapPaymentsSourceToForm(props.paySource as ServiceOrder['payments']);
+      setValue?.('payments', mapped);
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Card>
@@ -214,4 +245,4 @@ export default function PaymentsSection(props?: Props) {
       </div>
     </Card>
   );
-}
+  }

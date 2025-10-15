@@ -20,7 +20,7 @@ type DatesSitesSectionProps = {
   setValue: UseFormSetValue<Record<string, unknown>>;
   selectedServiceType?: string | null;
   t: (key: string) => string;
-  fieldConfigs: Record<string, FieldMeta | undefined>;
+  serviceTypeFields?: FieldMeta[] | undefined;
   formErrors: Record<string, string | undefined>;
 };
 
@@ -30,13 +30,32 @@ export default function DatesSitesSection({
   setValue,
   selectedServiceType,
   t,
-  fieldConfigs = {},
+  serviceTypeFields = [],
   formErrors = {},
 }: DatesSitesSectionProps) {
   // keep references to props that may be used by parent wiring (avoids unused var lint)
   void getValues;
   void setValue;
   void selectedServiceType;
+  // build local lookup from provided serviceTypeFields
+  const byNameLocal: Record<string, FieldMeta | undefined> = {};
+  (serviceTypeFields || []).forEach((f) => { if (f && typeof f === 'object' && 'name' in f) byNameLocal[f.name] = f; });
+
+  const DATES_FIELD_NAMES: Record<string, string> = {
+    operationStartsAtField: 'operation_starts_at',
+    blDateField: 'bl_date',
+    cargoArrivalDateField: 'cargo_arrival_date',
+    operationFinishesAtField: 'operation_finishes_at',
+    operationFinishDateField: 'operation_finish_date',
+    firstSiteIdField: 'first_site_id',
+    secondSiteIdField: 'second_site_id',
+    thirdSiteIdField: 'third_site_id',
+    stuffingSiteIdField: 'stuffing_site_id',
+    departureSiteIdField: 'departure_site_id',
+    destinationField: 'destination',
+  };
+
+  const fieldConfigs = Object.fromEntries(Object.entries(DATES_FIELD_NAMES).map(([k, svcName]) => [k, byNameLocal[svcName]])) as Record<string, FieldMeta | undefined>;
   const {
     operationStartsAtField,
     blDateField,
@@ -49,7 +68,7 @@ export default function DatesSitesSection({
     stuffingSiteIdField,
     departureSiteIdField,
     destinationField,
-  } = fieldConfigs as Record<string, FieldMeta | undefined>;
+  } = fieldConfigs;
 
   const qc = useQueryClient();
   const [firstSiteSuggestions, setFirstSiteSuggestions] = useState<Site[]>([]);
@@ -74,14 +93,11 @@ export default function DatesSitesSection({
 
   return (
     <Card>
-      <div className="mb-4 text-center">
-        <div className="inline-block w-full px-4 py-1 border border-teal-100 rounded-md bg-teal-50">
-          <h3 className="text-lg font-semibold text-teal-700">{t('service_orders:dates_sites_forecasts') || 'Datas, Locais e Previsões'}</h3>
-        </div>
+      <div className="inline-block w-full px-4 py-1 border border-teal-100 rounded-md bg-teal-50">
+        <h3 className="text-lg font-semibold text-center text-teal-700">{t('service_orders:dates_sites_forecasts').toUpperCase()}</h3>
       </div>
-
       <div className="flex justify-center w-full">
-        <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid w-full grid-cols-1 gap-6 mt-4 md:grid-cols-2 lg:grid-cols-4">
 
           {/* Operation Starts At */}
           {operationStartsAtField?.visible && (
@@ -90,9 +106,14 @@ export default function DatesSitesSection({
               <Controller
                 control={control}
                 name="operation_starts_at"
-                defaultValue={operationStartsAtField?.default_value}
                 render={({ field }) => (
-                  <Calendar showIcon className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
+                  <Calendar
+                    showIcon
+                    dateFormat="dd/mm/yy"
+                    className="w-full"
+                    value={field.value as Date | undefined}
+                    onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)}
+                  />
                 )}
               />
               {formErrors.operation_starts_at && <small className="p-error">{formErrors.operation_starts_at}</small>}
@@ -106,9 +127,14 @@ export default function DatesSitesSection({
               <Controller
                 control={control}
                 name="bl_date"
-                defaultValue={blDateField?.default_value}
                 render={({ field }) => (
-                  <Calendar showIcon className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
+                  <Calendar
+                    showIcon
+                    dateFormat="dd/mm/yy"
+                    className="w-full"
+                    value={field.value as Date | undefined}
+                    onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)}
+                  />
                 )}
               />
               {formErrors.bl_date && <small className="p-error">{formErrors.bl_date}</small>}
@@ -122,9 +148,14 @@ export default function DatesSitesSection({
               <Controller
                 control={control}
                 name="cargo_arrival_date"
-                defaultValue={cargoArrivalDateField?.default_value}
                 render={({ field }) => (
-                  <Calendar showIcon className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
+                  <Calendar
+                    showIcon
+                    dateFormat="dd/mm/yy"
+                    className="w-full"
+                    value={field.value as Date | undefined}
+                    onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)}
+                  />
                 )}
               />
               {formErrors.cargo_arrival_date && <small className="p-error">{formErrors.cargo_arrival_date}</small>}
@@ -138,9 +169,15 @@ export default function DatesSitesSection({
               <Controller
                 control={control}
                 name="operation_finishes_at"
-                defaultValue={operationFinishesAtField?.default_value}
                 render={({ field }) => (
-                  <Calendar showIcon className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
+                  <Calendar
+                    showIcon
+                    dateFormat="dd/mm/yy"
+                    showTime
+                    className="w-full"
+                    value={field.value as Date | undefined}
+                    onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)}
+                  />
                 )}
               />
               {formErrors.operation_finishes_at && <small className="p-error">{formErrors.operation_finishes_at}</small>}
@@ -156,7 +193,14 @@ export default function DatesSitesSection({
                 name="operation_finish_date"
                 defaultValue={operationFinishDateField?.default_value}
                 render={({ field }) => (
-                  <Calendar showIcon className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
+                  <Calendar
+                    showIcon
+                    dateFormat="dd/mm/yy"
+                    showTime
+                    className="w-full"
+                    value={field.value as Date | undefined}
+                    onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)}
+                  />
                 )}
               />
               {formErrors.operation_finish_date && <small className="p-error">{formErrors.operation_finish_date}</small>}

@@ -1,6 +1,8 @@
 import BaseService from './BaseService';
 import type { RequestParams } from './BaseService';
 import api from './api';
+import { formatForPayload, formatForPayloadDateTime } from '../utils/dateHelpers';
+import { formatNumberFixed } from '../utils/numberHelpers';
 import AttachmentService from './AttachmentService';
 import type { ApiPaginatedResponse } from '../models/apiTypes';
 import type { ServiceOrder, ServiceOrderSubmission } from '../models/serviceOrder';
@@ -8,6 +10,93 @@ import type { ServiceOrder, ServiceOrderSubmission } from '../models/serviceOrde
 class ServiceOrderService extends BaseService {
   constructor() {
     super('/inspection/service-order');
+  }
+
+  // placeholder - actual implementation attached to prototype below
+  applyDateFormatting(pl: Record<string, unknown>): void {
+    if (!pl || typeof pl !== 'object') return;
+    try {
+      const DATETIME_FIELDS = new Set([
+        'nomination_date',
+        'operation_finishes_at',
+        'operation_finish_date',
+      ]);
+      const WEIGHT_FIELDS = new Set([
+        'gross_volume_landed',
+        'net_volume_landed',
+        'tare_volume_landed',
+        'gross_volume_invoice',
+        'net_volume_invoice',
+        'tare_volume_invoice',
+      ]);
+
+      const isDateKey = (key: string) => /(_at$|_date$|^nomination_date$|operation_starts_at$|operation_finishes_at$|bl_date$|cargo_arrival_date$|created_at$|updated_at$)/i.test(key);
+
+      const formatValueForKey = (key: string, val: unknown) => {
+        if (val === null || val === undefined) return val;
+        // Date object -> format
+        if (val instanceof Date) return DATETIME_FIELDS.has(key) ? formatForPayloadDateTime(val) : formatForPayload(val);
+        // string that should be treated as date when key is date-like
+        if (typeof val === 'string' && isDateKey(key)) {
+          return DATETIME_FIELDS.has(key) ? formatForPayloadDateTime(val) : formatForPayload(val);
+        }
+        // weight fields (match exact snake_case or camelCase endings)
+        const lowerKey = key.toLowerCase();
+        for (const wf of Array.from(WEIGHT_FIELDS)) {
+          const compact = wf.replace(/_/g, '');
+          if (lowerKey === wf || lowerKey.endsWith(wf) || lowerKey.includes(compact)) {
+            // keep null/empty as null
+            if (val === null) return null;
+            try {
+              if (String(val).trim() === '') return null;
+              return formatNumberFixed(String(val), 2);
+            } catch {
+              return val;
+            }
+          }
+        }
+        return val;
+      };
+
+      Object.keys(pl).forEach((k) => {
+        try {
+          const v = pl[k];
+          if (v === null || v === undefined) return;
+          if (v instanceof Date || typeof v === 'string' || typeof v === 'number') {
+            pl[k] = formatValueForKey(k, v);
+            return;
+          }
+          if (Array.isArray(v)) {
+            pl[k] = v.map((it) => {
+              if (!it || typeof it !== 'object') return it;
+              const copy: Record<string, unknown> = {};
+              Object.keys(it as Record<string, unknown>).forEach((ik) => {
+                copy[ik] = formatValueForKey(ik, (it as Record<string, unknown>)[ik]);
+              });
+              return copy;
+            });
+            return;
+          }
+          if (typeof v === 'object') {
+            // shallow-format object fields (e.g., nested single objects)
+            const obj = v as Record<string, unknown>;
+            Object.keys(obj).forEach((ik) => {
+              try {
+                const newVal = formatValueForKey(ik, obj[ik]);
+                obj[ik] = newVal as unknown;
+              } catch {
+                // ignore
+              }
+            });
+            pl[k] = obj;
+          }
+        } catch {
+          // ignore per-key
+        }
+      });
+    } catch {
+      // ignore overall
+    }
   }
 
   async list<T>(params?: RequestParams): Promise<ApiPaginatedResponse<T>> {
@@ -115,6 +204,12 @@ class ServiceOrderService extends BaseService {
   async create<T = unknown>(payload: unknown): Promise<T> {
   // Before creating, remove nested objects and upload new attachments via presigned URLs
   const pl = payload as Record<string, unknown>;
+      // apply date formatting (delegated to service)
+      try {
+        this.applyDateFormatting(pl);
+      } catch {
+        // ignore
+      }
       // ensure attachments node exists so backend receives an empty array when no attachments
       if (!Array.isArray(pl.attachments)) pl.attachments = [];
       // remove nested objects in arrays
@@ -164,6 +259,13 @@ class ServiceOrderService extends BaseService {
 
   async update<T = unknown>(id: string, payload: unknown): Promise<T> {
   const pl = payload as Record<string, unknown>;
+      // apply date formatting (delegated to service)
+      try {
+        this.applyDateFormatting(pl);
+      } catch {
+        // ignore
+      }
+      console.log(pl);
       // ensure attachments node exists so backend receives an array even when empty
       if (!Array.isArray(pl.attachments)) pl.attachments = [];
       // do not send attachments already on server - but preserve the array (may become empty)
@@ -227,5 +329,7 @@ class ServiceOrderService extends BaseService {
     return AttachmentService.deleteAttachment(attachmentId);
   }
 }
+
+// (date formatting implemented as class method)
 
 export default new ServiceOrderService();

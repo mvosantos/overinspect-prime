@@ -19,6 +19,13 @@ const tryParseDate = (v: unknown): Date | null => {
       // ignore
     }
   }
+  // Fallback: try native Date parsing for strings like "Thu Oct 16 2025 00:00:00 GMT-0300 (...)"
+  try {
+    const d2 = new Date(v);
+    if (isValid(d2)) return d2;
+  } catch {
+    // ignore
+  }
   return null;
 };
 
@@ -26,7 +33,15 @@ export const formatForPayload = (v: unknown): unknown => {
   if (!v) return v;
   const d = tryParseDate(v);
   if (!d) return v;
-  return format(d, 'yyyy-MM-dd HH:mm');
+  // Always emit date-only for API payloads per new requirement
+  return format(d, 'yyyy-MM-dd');
+};
+
+export const formatForPayloadDateTime = (v: unknown): unknown => {
+  if (!v) return v;
+  const d = tryParseDate(v);
+  if (!d) return v;
+  return format(d, 'yyyy-MM-dd HH:mm:ss');
 };
 
 export const parseToDateOrOriginal = (v: unknown): unknown => {

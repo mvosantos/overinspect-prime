@@ -51,13 +51,17 @@ type Props = {
   control?: Control<Record<string, unknown>>;
   errors?: FieldErrors<Record<string, unknown>>;
   setValue?: UseFormSetValue<Record<string, unknown>>;
+  // new prop: accept raw serviceTypeFields array so sections can compute mappings
+  serviceTypeFields?: FieldMeta[];
+  // keep legacy fieldConfigs for backward compatibility
+  fieldConfigs?: Record<string, FieldMeta | undefined>;
 
 };
 
 // explicit calendar change event type for primereact Calendar
 type CalendarChangeEvent = { value?: Date | Date[] | null };
 
-export default function GeneralDataSection({ serviceTypeId, fields = [], register, control, errors = {} }: Props) {
+export default function GeneralDataSection({ serviceTypeId, fields = [], register, control, errors = {}, fieldConfigs = {}, serviceTypeFields = [] }: Props) {
   const { t } = useTranslation('new_service_order');
   const [subsSuggestions, setSubsSuggestions] = useState<Subsidiary[]>([]);
   const [businessUnitSuggestions, setBusinessUnitSuggestions] = useState<BusinessUnit[]>([]);
@@ -254,7 +258,7 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
     <Card>
       <div className="mb-4 text-center">
         <div className="inline-block w-full px-4 py-1 border border-teal-100 rounded-md bg-teal-50">
-          <h3 className="text-lg font-semibold text-teal-700">Dados Gerais</h3>
+          <h3 className="text-lg font-semibold text-teal-700">{t('service_orders:general_data').toUpperCase()}</h3>
         </div>
       </div>
 
@@ -302,8 +306,10 @@ export default function GeneralDataSection({ serviceTypeId, fields = [], registe
               render={({ field }) => (
                 <Calendar
                   className="w-full"
+                  showIcon
                   value={field.value as Date | undefined}
                   onChange={(e: CalendarChangeEvent) => field.onChange(e?.value ?? null)}
+                  dateFormat="dd/mm/yy"
                 />
               )}
             />

@@ -21,9 +21,10 @@ type Props = {
   label?: string;
   currentOrderId?: string | null;
   currentStatusId?: string | null;
+  onStatusMetaChange?: (meta: { enable_attach?: boolean | null; enable_editing?: boolean | null } | null) => void;
 };
 
-export default function PageFooter({ onSaveClick, label = 'Salvar', currentOrderId = null, currentStatusId = null }: Props) {
+export default function PageFooter({ onSaveClick, label = 'Salvar', currentOrderId = null, currentStatusId = null, onStatusMetaChange }: Props) {
   const { theme } = useTheme();
   const save = useSave();
   const toast = useRef<Toast | null>(null);
@@ -149,10 +150,17 @@ export default function PageFooter({ onSaveClick, label = 'Salvar', currentOrder
 
   const handleSaveStatus = async () => {
     if (!currentOrderId || !selectedStatus) return;
+    // If comment is required for the selected target, enforce it and notify the user
+    if (requiresComment && comment.trim().length === 0) {
+      toast.current?.show({ severity: 'warn', summary: 'Comentário obrigatório', detail: 'Este status exige um comentário. Por favor, adicione um comentário antes de salvar.' });
+      return;
+    }
     await mutation.mutateAsync({ orderId: currentOrderId, statusId: selectedStatus, commentText: comment });
   };
 
   const showStatusDropdown = Boolean(currentOrderId && statusOptions.length > 0);
+  // Show save button only when top-level enable_editing is explicitly true
+  const showSaveButton = statusMeta?.enable_editing === true;
 
   const saveTooltip = !canEdit ? 'A solicitação de crédito não pode ser modificada' : (!meta.isValid ? 'O formulário contém erros' : undefined);
 
