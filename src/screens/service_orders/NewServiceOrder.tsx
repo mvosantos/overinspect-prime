@@ -1171,7 +1171,9 @@ export default function NewServiceOrder() {
           </div>
         )}
         {/* footer shows when a service type is selected (keep previous UX): PageFooter now triggers SaveContext */}
-  {selectedServiceTypeId && <PageFooter currentOrderId={currentOrderId} currentStatusId={(formDefaults && (formDefaults.service_order_status && (formDefaults.service_order_status as Record<string, unknown>).id) as string) ?? undefined} />}
+  {selectedServiceTypeId && activeTab !== 1 && (
+    <PageFooter currentOrderId={currentOrderId} currentStatusId={(formDefaults && (formDefaults.service_order_status && (formDefaults.service_order_status as Record<string, unknown>).id) as string) ?? undefined} />
+  )}
       </div>
     </div>
   );

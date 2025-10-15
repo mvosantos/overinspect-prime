@@ -12,6 +12,7 @@ import { InputTextarea } from 'primereact/inputtextarea';
 import { Calendar } from 'primereact/calendar';
 import { InputNumber } from 'primereact/inputnumber';
 import { Button } from 'primereact/button';
+import { Dialog } from 'primereact/dialog';
 import { AutoComplete } from 'primereact/autocomplete';
 import { Toast } from 'primereact/toast';
 import { useFormContext } from 'react-hook-form';
@@ -82,6 +83,20 @@ const ItemSchema = z.object({
   attachments: z.array(z.any()).optional().default([]),
   service_order_status: z.any().optional(),
 });
+// derive submitting state directly from react-query mutation internals
+// consider both `state === 'loading'` and `fetchStatus === 'fetching'` to
+// capture transient fetch phases reliably.
+function mutationIsLoading(m: unknown) {
+  try {
+    const mm = m as Record<string, unknown>;
+    const state = typeof mm.state === 'string' ? String(mm.state) : undefined;
+    const fetchStatus = typeof mm.fetchStatus === 'string' ? String(mm.fetchStatus) : undefined;
+    const status = typeof mm.status === 'string' ? String(mm.status) : undefined;
+    return state === 'loading' || fetchStatus === 'fetching' || status === 'loading';
+  } catch {
+    return false;
+  }
+}
 
 export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
   const qc = useQueryClient();
@@ -494,13 +509,26 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
         }
     });
 
-    const onDelete = async () => {
-      if (!item || !item.id) return;
+    const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+    const [cancelConfirmVisible, setCancelConfirmVisible] = useState(false);
+
+    const onDelete = () => {
+      // open confirmation dialog
+      setDeleteConfirmVisible(true);
+    };
+
+    const confirmDelete = async () => {
+      if (!item || !item.id) {
+        setDeleteConfirmVisible(false);
+        return;
+      }
       try {
         await deleteMutation.mutateAsync(item.id);
         toast.current?.show({ severity: 'success', summary: 'Removido', detail: 'Registro removido' });
       } catch {
         toast.current?.show({ severity: 'error', summary: 'Erro', detail: 'Falha ao remover' });
+      } finally {
+        setDeleteConfirmVisible(false);
       }
     };
 
@@ -1271,12 +1299,18 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
         {/* Botões no final */}
         <div className="flex items-end justify-end gap-2 mt-6">
           <div className="flex gap-2">
-            <Button label="Salvar" icon="pi pi-save" onClick={onSave} disabled={!parentEnableEditing} />
+            <Button
+              label={isNew ? (mutationIsLoading(createMutation) ? t('common:saving') : 'Salvar') : (mutationIsLoading(updateMutation) ? t('common:saving') : 'Salvar')}
+              icon="pi pi-save"
+              onClick={onSave}
+              disabled={!parentEnableEditing}
+              loading={isNew ? mutationIsLoading(createMutation) : mutationIsLoading(updateMutation)}
+            />
             {!isNew && (
               <Button label="Excluir" icon="pi pi-trash" className="p-button-danger" onClick={onDelete} disabled={!parentEnableEditing} />
             )}
             {isNew && (
-              <Button label="Cancelar" icon="pi pi-times" className="p-button-text" onClick={() => setCreatingNew(false)} />
+              <Button label="Cancelar" icon="pi pi-times" className="p-button-text" onClick={() => setCancelConfirmVisible(true)} />
             )}
           </div>
         </div>
@@ -1285,6 +1319,22 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
         <div className="mt-6">
           <AttachmentsSection name="attachments" path="operation/good" />
         </div>
+        {/* Confirm dialogs */}
+        <Dialog header="Confirmar exclusão" visible={deleteConfirmVisible} onHide={() => setDeleteConfirmVisible(false)}>
+          <p>{t('common:delete_record_confirmation')}</p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button label={t('common:cancelUCase')} onClick={() => setDeleteConfirmVisible(false)} />
+            <Button label="Sim, excluir" className="p-button-danger" onClick={confirmDelete} disabled={mutationIsLoading(deleteMutation)} />
+          </div>
+        </Dialog>
+
+        <Dialog header="Confirmar" visible={cancelConfirmVisible} onHide={() => setCancelConfirmVisible(false)}>
+          <p>Deseja cancelar a criação deste registro?</p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button label={t('common:cancelUCase')} onClick={() => setCancelConfirmVisible(false)} />
+            <Button label="Sim, cancelar" className="p-button-secondary" onClick={() => { setCancelConfirmVisible(false); setCreatingNew(false); }} />
+          </div>
+        </Dialog>
       </div>
     </FormProvider>
   );
@@ -1311,9 +1361,8 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
           <Button label="Colapsar" onClick={collapseAll} className="p-button-text" />
         </div>
         <div className="flex items-center gap-2">
+          <div className="text-sm text-muted">Total: {total}</div>  
           <InputText placeholder="Buscar por navio" value={search} onChange={(e) => setSearch((e.target as HTMLInputElement).value)} />
-
-          <div className="text-sm text-muted">Total: {total}</div>
         </div>
       </div>
 
