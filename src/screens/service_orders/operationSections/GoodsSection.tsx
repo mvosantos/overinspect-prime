@@ -23,7 +23,7 @@ import vesselTypeService from '../../../services/vesselTypeService';
 import weatherService from '../../../services/weatherService';
 import AttachmentsSection from '../../../components/AttachmentsSection';
 import { createAutocompleteComplete } from '../../../utils/autocompleteHelpers';
-import { makeAutoCompleteOnChange, resolveAutoCompleteValue, seedCachedObject } from '../../../utils/formHelpers';
+import { makeAutoCompleteOnChange, resolveAutoCompleteValue, seedCachedObject, resolveFieldName, resolveFieldDefault } from '../../../utils/formHelpers';
 
 type Props = {
   currentOrderId?: string | null;
@@ -196,99 +196,99 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
 
   // inner component for each item (existing or new)
   function GoodItemForm({ item, isNew }: { item?: any; isNew?: boolean }) {
-  const loadingPortFieldName = goodsVesselLoadingPortField?.name ?? 'loading_port_id';
-  const dischargePortFieldName = goodsVesselDischargePortField?.name ?? 'discharge_port_id';
-  const vesselNameFieldName = goodsVesselNameField?.name ?? 'vessel_name';
-  const weightFieldName = goodsWeightField?.name ?? 'weight_for_transportation';
-  const vesselTypeFieldName = goodsVesselTypeField?.name ?? 'vessel_type_id';
-  const loadingFacilityFieldName = goodsLoadingFacilityField?.name ?? 'loading_facility_id';
-  const dischargeFacilityFieldName = goodsDischargeFacilityField?.name ?? 'discharge_facility_id';
-  const weatherFieldName = goodsWeatherField?.name ?? 'weather_id';
+  const loadingPortFieldName = resolveFieldName(goodsVesselLoadingPortField, 'loading_port_id');
+  const dischargePortFieldName = resolveFieldName(goodsVesselDischargePortField, 'discharge_port_id');
+  const vesselNameFieldName = resolveFieldName(goodsVesselNameField, 'vessel_name');
+  const weightFieldName = resolveFieldName(goodsWeightField, 'weight_for_transportation');
+  const vesselTypeFieldName = resolveFieldName(goodsVesselTypeField, 'vessel_type_id');
+  const loadingFacilityFieldName = resolveFieldName(goodsLoadingFacilityField, 'loading_facility_id');
+  const dischargeFacilityFieldName = resolveFieldName(goodsDischargeFacilityField, 'discharge_facility_id');
+  const weatherFieldName = resolveFieldName(goodsWeatherField, 'weather_id');
   // text fields
-  const imoNumberFieldName = goodsImoNumberField?.name ?? 'imo_number';
-  const callSignFieldName = goodsCallSignField?.name ?? 'call_sign';
-  const mmsiNumberFieldName = goodsMmsiNumberField?.name ?? 'mmsi_number';
-  const portOfRegistryFieldName = goodsPortOfRegistryField?.name ?? 'port_of_registry';
-  const flagStateFieldName = goodsFlagStateField?.name ?? 'flag_state';
-  const loaFieldName = goodsLoaField?.name ?? 'loa';
-  const breadthFieldName = goodsBreadthField?.name ?? 'breadth';
-  const depthFieldName = goodsDepthField?.name ?? 'depth';
-  const grossTonnageFieldName = goodsGrossTonnageField?.name ?? 'gross_tonnage';
-  const netTonnageFieldName = goodsNetTonnageField?.name ?? 'net_tonnage';
-  const ownerFieldName = goodsOwnerField?.name ?? 'owner';
-  const soldToFieldName = goodsSoldToField?.name ?? 'sold_to';
-  const cargoFieldName = goodsCargoField?.name ?? 'cargo';
-  const bookingBBFieldName = goodsBookingBBField?.name ?? 'booking_bb';
-  const inspectorNameFieldName = goodsInspectorNameField?.name ?? 'inspector_name';
-  const terminalSupervisorFieldName = goodsTerminalSupervisorField?.name ?? 'terminal_supervisor_name';
-  const vesselVoyageFieldName = goodsVesselVoyageField?.name ?? 'vessel_voyage';
-  const flatRacksFieldName = goodsFlatRacksField?.name ?? 'flat_racks_and_position_on_board';
-  const dimensionFieldName = goodsDimensionField?.name ?? 'dimension';
+  const imoNumberFieldName = resolveFieldName(goodsImoNumberField, 'imo_number');
+  const callSignFieldName = resolveFieldName(goodsCallSignField, 'call_sign');
+  const mmsiNumberFieldName = resolveFieldName(goodsMmsiNumberField, 'mmsi_number');
+  const portOfRegistryFieldName = resolveFieldName(goodsPortOfRegistryField, 'port_of_registry');
+  const flagStateFieldName = resolveFieldName(goodsFlagStateField, 'flag_state');
+  const loaFieldName = resolveFieldName(goodsLoaField, 'loa');
+  const breadthFieldName = resolveFieldName(goodsBreadthField, 'breadth');
+  const depthFieldName = resolveFieldName(goodsDepthField, 'depth');
+  const grossTonnageFieldName = resolveFieldName(goodsGrossTonnageField, 'gross_tonnage');
+  const netTonnageFieldName = resolveFieldName(goodsNetTonnageField, 'net_tonnage');
+  const ownerFieldName = resolveFieldName(goodsOwnerField, 'owner');
+  const soldToFieldName = resolveFieldName(goodsSoldToField, 'sold_to');
+  const cargoFieldName = resolveFieldName(goodsCargoField, 'cargo');
+  const bookingBBFieldName = resolveFieldName(goodsBookingBBField, 'booking_bb');
+  const inspectorNameFieldName = resolveFieldName(goodsInspectorNameField, 'inspector_name');
+  const terminalSupervisorFieldName = resolveFieldName(goodsTerminalSupervisorField, 'terminal_supervisor_name');
+  const vesselVoyageFieldName = resolveFieldName(goodsVesselVoyageField, 'vessel_voyage');
+  const flatRacksFieldName = resolveFieldName(goodsFlatRacksField, 'flat_racks_and_position_on_board');
+  const dimensionFieldName = resolveFieldName(goodsDimensionField, 'dimension');
   // date/time fields
-  const dateOfLoadingFieldName = goodsDateOfLoadingField?.name ?? 'date_of_loading';
-  const dateOfDischargeFieldName = goodsDateOfDischargeField?.name ?? 'date_of_discharge';
-  const vesselArrivedFieldName = goodsVesselArrivedField?.name ?? 'vessel_arrived';
-  const vesselBerthedFieldName = goodsVesselBerthedField?.name ?? 'vessel_berthed';
-  const operationsCommencedFieldName = goodsOperationsCommencedField?.name ?? 'operations_commenced';
-  const surveyorAtTerminalFieldName = goodsSurveyorAtTerminalField?.name ?? 'surveyor_at_terminal';
-  const surveyorOnBoardFieldName = goodsSurveyorOnBoardField?.name ?? 'surveyor_on_board';
-  const unlashingFieldName = goodsUnlashingField?.name ?? 'unlashing';
-  const lifting1FieldName = goodsLifting1Field?.name ?? 'lifting_1';
-  const lifting2FieldName = goodsLifting2Field?.name ?? 'lifting_2';
-  const lifting3FieldName = goodsLifting3Field?.name ?? 'lifting_3';
-  const lifting4FieldName = goodsLifting4Field?.name ?? 'lifting_4';
-  const lifting5FieldName = goodsLifting5Field?.name ?? 'lifting_5';
-  const dischargeCompletedFieldName = goodsDischargeCompletedField?.name ?? 'discharge_completed';
-  const finalInspectionFieldName = goodsFinalInspectionField?.name ?? 'final_inspection';
-  const surveyorLeftTerminalFieldName = goodsSurveyorLeftTerminalField?.name ?? 'surveyor_left_terminal';
+  const dateOfLoadingFieldName = resolveFieldName(goodsDateOfLoadingField, 'date_of_loading');
+  const dateOfDischargeFieldName = resolveFieldName(goodsDateOfDischargeField, 'date_of_discharge');
+  const vesselArrivedFieldName = resolveFieldName(goodsVesselArrivedField, 'vessel_arrived');
+  const vesselBerthedFieldName = resolveFieldName(goodsVesselBerthedField, 'vessel_berthed');
+  const operationsCommencedFieldName = resolveFieldName(goodsOperationsCommencedField, 'operations_commenced');
+  const surveyorAtTerminalFieldName = resolveFieldName(goodsSurveyorAtTerminalField, 'surveyor_at_terminal');
+  const surveyorOnBoardFieldName = resolveFieldName(goodsSurveyorOnBoardField, 'surveyor_on_board');
+  const unlashingFieldName = resolveFieldName(goodsUnlashingField, 'unlashing');
+  const lifting1FieldName = resolveFieldName(goodsLifting1Field, 'lifting_1');
+  const lifting2FieldName = resolveFieldName(goodsLifting2Field, 'lifting_2');
+  const lifting3FieldName = resolveFieldName(goodsLifting3Field, 'lifting_3');
+  const lifting4FieldName = resolveFieldName(goodsLifting4Field, 'lifting_4');
+  const lifting5FieldName = resolveFieldName(goodsLifting5Field, 'lifting_5');
+  const dischargeCompletedFieldName = resolveFieldName(goodsDischargeCompletedField, 'discharge_completed');
+  const finalInspectionFieldName = resolveFieldName(goodsFinalInspectionField, 'final_inspection');
+  const surveyorLeftTerminalFieldName = resolveFieldName(goodsSurveyorLeftTerminalField, 'surveyor_left_terminal');
 
   const defaultVals: any = { ...(item ?? {}), attachments: (item && Array.isArray(item.attachments)) ? item.attachments : [] };
   // ensure the named fields are populated: prefer existing item value, then field default_value, then null
-  defaultVals[loadingPortFieldName] = item?.loading_port_id ?? (goodsVesselLoadingPortField?.default_value ?? null);
-  defaultVals[dischargePortFieldName] = item?.discharge_port_id ?? (goodsVesselDischargePortField?.default_value ?? null);
-  defaultVals[vesselNameFieldName] = item?.vessel_name ?? (goodsVesselNameField?.default_value ?? null);
-  defaultVals[weightFieldName] = item?.weight_for_transportation ?? (goodsWeightField?.default_value ?? null);
-  defaultVals[vesselTypeFieldName] = item?.vessel_type_id ?? (goodsVesselTypeField?.default_value ?? null);
-  defaultVals[loadingFacilityFieldName] = item?.loading_facility_id ?? (goodsLoadingFacilityField?.default_value ?? null);
-  defaultVals[dischargeFacilityFieldName] = item?.discharge_facility_id ?? (goodsDischargeFacilityField?.default_value ?? null);
-  defaultVals[weatherFieldName] = item?.weather_id ?? (goodsWeatherField?.default_value ?? null);
+  defaultVals[loadingPortFieldName] = resolveFieldDefault(goodsVesselLoadingPortField, item?.loading_port_id);
+  defaultVals[dischargePortFieldName] = resolveFieldDefault(goodsVesselDischargePortField, item?.discharge_port_id);
+  defaultVals[vesselNameFieldName] = resolveFieldDefault(goodsVesselNameField, item?.vessel_name);
+  defaultVals[weightFieldName] = resolveFieldDefault(goodsWeightField, item?.weight_for_transportation);
+  defaultVals[vesselTypeFieldName] = resolveFieldDefault(goodsVesselTypeField, item?.vessel_type_id);
+  defaultVals[loadingFacilityFieldName] = resolveFieldDefault(goodsLoadingFacilityField, item?.loading_facility_id);
+  defaultVals[dischargeFacilityFieldName] = resolveFieldDefault(goodsDischargeFacilityField, item?.discharge_facility_id);
+  defaultVals[weatherFieldName] = resolveFieldDefault(goodsWeatherField, item?.weather_id);
   // text defaults
-  defaultVals[imoNumberFieldName] = item?.imo_number ?? (goodsImoNumberField?.default_value ?? null);
-  defaultVals[callSignFieldName] = item?.call_sign ?? (goodsCallSignField?.default_value ?? null);
-  defaultVals[mmsiNumberFieldName] = item?.mmsi_number ?? (goodsMmsiNumberField?.default_value ?? null);
-  defaultVals[portOfRegistryFieldName] = item?.port_of_registry ?? (goodsPortOfRegistryField?.default_value ?? null);
-  defaultVals[flagStateFieldName] = item?.flag_state ?? (goodsFlagStateField?.default_value ?? null);
-  defaultVals[loaFieldName] = item?.loa ?? (goodsLoaField?.default_value ?? null);
-  defaultVals[breadthFieldName] = item?.breadth ?? (goodsBreadthField?.default_value ?? null);
-  defaultVals[depthFieldName] = item?.depth ?? (goodsDepthField?.default_value ?? null);
-  defaultVals[grossTonnageFieldName] = item?.gross_tonnage ?? (goodsGrossTonnageField?.default_value ?? null);
-  defaultVals[netTonnageFieldName] = item?.net_tonnage ?? (goodsNetTonnageField?.default_value ?? null);
-  defaultVals[ownerFieldName] = item?.owner ?? (goodsOwnerField?.default_value ?? null);
-  defaultVals[soldToFieldName] = item?.sold_to ?? (goodsSoldToField?.default_value ?? null);
-  defaultVals[cargoFieldName] = item?.cargo ?? (goodsCargoField?.default_value ?? null);
-  defaultVals[bookingBBFieldName] = item?.booking_bb ?? (goodsBookingBBField?.default_value ?? null);
-  defaultVals[inspectorNameFieldName] = item?.inspector_name ?? (goodsInspectorNameField?.default_value ?? null);
-  defaultVals[terminalSupervisorFieldName] = item?.terminal_supervisor_name ?? (goodsTerminalSupervisorField?.default_value ?? null);
-  defaultVals[vesselVoyageFieldName] = item?.vessel_voyage ?? (goodsVesselVoyageField?.default_value ?? null);
-  defaultVals[flatRacksFieldName] = item?.flat_racks_and_position_on_board ?? (goodsFlatRacksField?.default_value ?? null);
-  defaultVals[dimensionFieldName] = item?.dimension ?? (goodsDimensionField?.default_value ?? null);
+  defaultVals[imoNumberFieldName] = resolveFieldDefault(goodsImoNumberField, item?.imo_number);
+  defaultVals[callSignFieldName] = resolveFieldDefault(goodsCallSignField, item?.call_sign);
+  defaultVals[mmsiNumberFieldName] = resolveFieldDefault(goodsMmsiNumberField, item?.mmsi_number);
+  defaultVals[portOfRegistryFieldName] = resolveFieldDefault(goodsPortOfRegistryField, item?.port_of_registry);
+  defaultVals[flagStateFieldName] = resolveFieldDefault(goodsFlagStateField, item?.flag_state);
+  defaultVals[loaFieldName] = resolveFieldDefault(goodsLoaField, item?.loa);
+  defaultVals[breadthFieldName] = resolveFieldDefault(goodsBreadthField, item?.breadth);
+  defaultVals[depthFieldName] = resolveFieldDefault(goodsDepthField, item?.depth);
+  defaultVals[grossTonnageFieldName] = resolveFieldDefault(goodsGrossTonnageField, item?.gross_tonnage);
+  defaultVals[netTonnageFieldName] = resolveFieldDefault(goodsNetTonnageField, item?.net_tonnage);
+  defaultVals[ownerFieldName] = resolveFieldDefault(goodsOwnerField, item?.owner);
+  defaultVals[soldToFieldName] = resolveFieldDefault(goodsSoldToField, item?.sold_to);
+  defaultVals[cargoFieldName] = resolveFieldDefault(goodsCargoField, item?.cargo);
+  defaultVals[bookingBBFieldName] = resolveFieldDefault(goodsBookingBBField, item?.booking_bb);
+  defaultVals[inspectorNameFieldName] = resolveFieldDefault(goodsInspectorNameField, item?.inspector_name);
+  defaultVals[terminalSupervisorFieldName] = resolveFieldDefault(goodsTerminalSupervisorField, item?.terminal_supervisor_name);
+  defaultVals[vesselVoyageFieldName] = resolveFieldDefault(goodsVesselVoyageField, item?.vessel_voyage);
+  defaultVals[flatRacksFieldName] = resolveFieldDefault(goodsFlatRacksField, item?.flat_racks_and_position_on_board);
+  defaultVals[dimensionFieldName] = resolveFieldDefault(goodsDimensionField, item?.dimension);
   // date defaults
-  defaultVals[dateOfLoadingFieldName] = item?.date_of_loading ?? (goodsDateOfLoadingField?.default_value ?? null);
-  defaultVals[dateOfDischargeFieldName] = item?.date_of_discharge ?? (goodsDateOfDischargeField?.default_value ?? null);
-  defaultVals[vesselArrivedFieldName] = item?.vessel_arrived ?? (goodsVesselArrivedField?.default_value ?? null);
-  defaultVals[vesselBerthedFieldName] = item?.vessel_berthed ?? (goodsVesselBerthedField?.default_value ?? null);
-  defaultVals[operationsCommencedFieldName] = item?.operations_commenced ?? (goodsOperationsCommencedField?.default_value ?? null);
-  defaultVals[surveyorAtTerminalFieldName] = item?.surveyor_at_terminal ?? (goodsSurveyorAtTerminalField?.default_value ?? null);
-  defaultVals[surveyorOnBoardFieldName] = item?.surveyor_on_board ?? (goodsSurveyorOnBoardField?.default_value ?? null);
-  defaultVals[unlashingFieldName] = item?.unlashing ?? (goodsUnlashingField?.default_value ?? null);
-  defaultVals[lifting1FieldName] = item?.lifting_1 ?? (goodsLifting1Field?.default_value ?? null);
-  defaultVals[lifting2FieldName] = item?.lifting_2 ?? (goodsLifting2Field?.default_value ?? null);
-  defaultVals[lifting3FieldName] = item?.lifting_3 ?? (goodsLifting3Field?.default_value ?? null);
-  defaultVals[lifting4FieldName] = item?.lifting_4 ?? (goodsLifting4Field?.default_value ?? null);
-  defaultVals[lifting5FieldName] = item?.lifting_5 ?? (goodsLifting5Field?.default_value ?? null);
-  defaultVals[dischargeCompletedFieldName] = item?.discharge_completed ?? (goodsDischargeCompletedField?.default_value ?? null);
-  defaultVals[finalInspectionFieldName] = item?.final_inspection ?? (goodsFinalInspectionField?.default_value ?? null);
-  defaultVals[surveyorLeftTerminalFieldName] = item?.surveyor_left_terminal ?? (goodsSurveyorLeftTerminalField?.default_value ?? null);
+  defaultVals[dateOfLoadingFieldName] = resolveFieldDefault(goodsDateOfLoadingField, item?.date_of_loading);
+  defaultVals[dateOfDischargeFieldName] = resolveFieldDefault(goodsDateOfDischargeField, item?.date_of_discharge);
+  defaultVals[vesselArrivedFieldName] = resolveFieldDefault(goodsVesselArrivedField, item?.vessel_arrived);
+  defaultVals[vesselBerthedFieldName] = resolveFieldDefault(goodsVesselBerthedField, item?.vessel_berthed);
+  defaultVals[operationsCommencedFieldName] = resolveFieldDefault(goodsOperationsCommencedField, item?.operations_commenced);
+  defaultVals[surveyorAtTerminalFieldName] = resolveFieldDefault(goodsSurveyorAtTerminalField, item?.surveyor_at_terminal);
+  defaultVals[surveyorOnBoardFieldName] = resolveFieldDefault(goodsSurveyorOnBoardField, item?.surveyor_on_board);
+  defaultVals[unlashingFieldName] = resolveFieldDefault(goodsUnlashingField, item?.unlashing);
+  defaultVals[lifting1FieldName] = resolveFieldDefault(goodsLifting1Field, item?.lifting_1);
+  defaultVals[lifting2FieldName] = resolveFieldDefault(goodsLifting2Field, item?.lifting_2);
+  defaultVals[lifting3FieldName] = resolveFieldDefault(goodsLifting3Field, item?.lifting_3);
+  defaultVals[lifting4FieldName] = resolveFieldDefault(goodsLifting4Field, item?.lifting_4);
+  defaultVals[lifting5FieldName] = resolveFieldDefault(goodsLifting5Field, item?.lifting_5);
+  defaultVals[dischargeCompletedFieldName] = resolveFieldDefault(goodsDischargeCompletedField, item?.discharge_completed);
+  defaultVals[finalInspectionFieldName] = resolveFieldDefault(goodsFinalInspectionField, item?.final_inspection);
+  defaultVals[surveyorLeftTerminalFieldName] = resolveFieldDefault(goodsSurveyorLeftTerminalField, item?.surveyor_left_terminal);
     // also expose parent service_order_status into this form so AttachmentsSection can read enable flags
     const form = useForm<any>({ resolver: zodResolver(ItemSchema), defaultValues: { ...defaultVals, service_order_status: parentStatus } as any });
     const { handleSubmit, control, setValue } = form;
@@ -1298,13 +1298,7 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
       <Toast ref={toast} />
 
       <div className="flex items-center justify-between gap-4 mb-4">
-        <div className="flex items-center gap-2">
-          <InputText placeholder="Buscar por navio" value={search} onChange={(e) => setSearch((e.target as HTMLInputElement).value)} />
-
-          <div className="text-sm text-muted">Total: {total}</div>
-        </div>
-
-        <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
           <Button label="Novo" icon="pi pi-plus" onClick={() => {
             setCreatingNew(true);
             // open the new top panel (index 0)
@@ -1315,6 +1309,11 @@ export default function GoodsSection({ currentOrderId, fieldConfigs }: Props) {
           <Button label="Expandir todos" onClick={expandAll} className="p-button-text" />
 
           <Button label="Colapsar" onClick={collapseAll} className="p-button-text" />
+        </div>
+        <div className="flex items-center gap-2">
+          <InputText placeholder="Buscar por navio" value={search} onChange={(e) => setSearch((e.target as HTMLInputElement).value)} />
+
+          <div className="text-sm text-muted">Total: {total}</div>
         </div>
       </div>
 

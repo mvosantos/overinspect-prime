@@ -80,3 +80,15 @@ export function seedCachedObject<T extends { id?: string }>(
     // ignore
   }
 }
+
+// Resolve configured field name (cfg may be undefined)
+export function resolveFieldName(cfg: { name?: string } | undefined, fallback: string) {
+  return cfg?.name ?? fallback;
+}
+
+// Resolve default value for a form field: prefer explicit itemValue, then cfg.default_value, else fallback (or null)
+export function resolveFieldDefault(cfg: { default_value?: unknown } | undefined, itemValue: unknown, fallback?: unknown) {
+  if (itemValue !== undefined && itemValue !== null) return itemValue;
+  if (cfg && cfg.default_value !== undefined) return cfg.default_value;
+  return fallback ?? null;
+}
