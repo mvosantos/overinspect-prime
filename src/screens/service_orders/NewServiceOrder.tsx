@@ -42,6 +42,18 @@ export default function NewServiceOrder() {
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
   const [selectedServiceTypeId, setSelectedServiceTypeId] = useState<string | null>(null);
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<number>(() => {
+    try {
+      const raw = sessionStorage.getItem('new_service_order:last_tab');
+      if (raw != null) {
+        const n = Number(raw);
+        if (!Number.isNaN(n)) return n;
+      }
+    } catch {
+      // ignore
+    }
+    return 0;
+  });
   type ServiceTypeField = { name: string; label?: string; default_value?: unknown; visible?: boolean; required?: boolean; field_type?: string | null };
   type FieldMetaLocal = { name: string; visible?: boolean; required?: boolean; default_value?: unknown };
   const [serviceTypeFields, setServiceTypeFields] = useState<ServiceTypeField[]>([]);
@@ -925,7 +937,20 @@ export default function NewServiceOrder() {
 
           
 
-          <TabView>
+          {/* Persist last active tab in sessionStorage so switching windows/tabs doesn't reset it */}
+          {/* Controlled via state so clicks change tab immediately; value is initialized from sessionStorage */}
+          <TabView
+            activeIndex={activeTab}
+            onTabChange={(e: { index: number }) => {
+              try {
+                const idx = typeof e.index === 'number' ? e.index : 0;
+                setActiveTab(idx);
+                sessionStorage.setItem('new_service_order:last_tab', String(idx));
+              } catch {
+                // ignore
+              }
+            }}
+          >
             <TabPanel header={
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <i className="pi pi-file" />
