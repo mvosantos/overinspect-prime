@@ -53,6 +53,7 @@ export default function TallySection({ currentOrderId, fieldConfigs }: Props) {
   const createMutation = useMutation<TallyOperation, Error, any>({ mutationFn: (payload: any) => operationTallyService.create(payload), onSuccess: () => { void qc.invalidateQueries({ queryKey: ['operation-tallies', currentOrderId] } as any); void refetch(); } });
   const updateMutation = useMutation<TallyOperation, Error, { id: string; payload: any }>({ mutationFn: ({ id, payload }) => operationTallyService.update(id, payload), onSuccess: () => { void qc.invalidateQueries({ queryKey: ['operation-tallies', currentOrderId] } as any); void refetch(); } });
   const deleteMutation = useMutation<void, Error, string>({ mutationFn: (id: string) => operationTallyService.remove(id), onSuccess: () => { void qc.invalidateQueries({ queryKey: ['operation-tallies', currentOrderId] } as any); void refetch(); } });
+  const deleteReadingMutation = useMutation<void, Error, string>({ mutationFn: (id: string) => operationTallyService.removeReading(id), onSuccess: () => { void qc.invalidateQueries({ queryKey: ['operation-tallies', currentOrderId] } as any); void refetch(); } });
 
   const items = useMemo(() => ((data && Array.isArray((data as any).data)) ? (data as any).data : []), [data]);
   const total = useMemo(() => ((data && typeof (data as any).total === 'number') ? (data as any).total : 0), [data]);
@@ -102,6 +103,7 @@ export default function TallySection({ currentOrderId, fieldConfigs }: Props) {
             createMutation={createMutation}
             updateMutation={updateMutation}
             deleteMutation={deleteMutation}
+            deleteReadingMutation={deleteReadingMutation}
             currentOrderId={currentOrderId}
             setCreatingNew={setCreatingNew}
             toastRef={toast}

@@ -13,6 +13,7 @@ import { Dialog } from 'primereact/dialog';
 import AttachmentsSection from '../../../components/AttachmentsSection';
 import { createAutocompleteComplete } from '../../../utils/autocompleteHelpers';
 import { makeAutoCompleteOnChange, resolveAutoCompleteValue, seedCachedObject, resolveFieldName, resolveFieldDefault } from '../../../utils/formHelpers';
+import { parseToDateOrOriginal } from '../../../utils/dateHelpers';
 import siteService from '../../../services/siteService';
 
 const ReadingSchema = z.object({
@@ -55,13 +56,14 @@ type Props = {
   createMutation?: any;
   updateMutation?: any;
   deleteMutation?: any;
+  deleteReadingMutation?: any;
   currentOrderId?: string | null;
   setCreatingNew?: (b: boolean) => void;
   toastRef?: React.RefObject<any>;
   t?: (k: string) => string;
 };
 
-export default function TallyItemForm({ item, isNew, fieldConfigs, parentStatus, createMutation, updateMutation, deleteMutation, currentOrderId, setCreatingNew, toastRef, t }: Props) {
+export default function TallyItemForm({ item, isNew, fieldConfigs, parentStatus, createMutation, updateMutation, deleteMutation, deleteReadingMutation, currentOrderId, setCreatingNew, toastRef, t }: Props) {
   const qc = useQueryClient();
 
   const parentEnableEditing = parentStatus ? Boolean((parentStatus as any)?.enable_editing ?? true) : true;
@@ -95,7 +97,14 @@ export default function TallyItemForm({ item, isNew, fieldConfigs, parentStatus,
     [tareFieldName]: resolveFieldDefault(tareField, r?.tare_weight ?? r?.total_weight),
     [grossFieldName]: resolveFieldDefault(grossField, r?.gross_weight),
     [netFieldName]: resolveFieldDefault(netField, r?.net_weight),
-    [dateFieldName]: resolveFieldDefault(dateField, r?.date),
+    [dateFieldName]: (() => {
+      try {
+        const parsed = parseToDateOrOriginal(r?.date);
+        return parsed instanceof Date ? parsed : resolveFieldDefault(dateField, r?.date);
+      } catch {
+        return resolveFieldDefault(dateField, r?.date);
+      }
+    })(),
     [latFieldName]: resolveFieldDefault(latField, r?.latitude),
     [longFieldName]: resolveFieldDefault(longField, r?.longitude),
     attachments: Array.isArray(r?.attachments) ? r.attachments : [],
@@ -157,16 +166,42 @@ export default function TallyItemForm({ item, isNew, fieldConfigs, parentStatus,
 
   const { fields, append, remove } = useFieldArray({ control, name: 'readings' });
 
+  const onReadingRemove = async (index: number) => {
+    try {
+      const vals = form.getValues();
+      const reading = vals && Array.isArray(vals.readings) ? vals.readings[index] : undefined;
+      const rid = reading && (reading.id ?? reading.reading_id) ? String(reading.id ?? reading.reading_id) : null;
+      const rm = (deleteReadingMutation && typeof deleteReadingMutation.mutateAsync === 'function') ? deleteReadingMutation : deleteMutation;
+      if (rid && rm && typeof rm.mutateAsync === 'function') {
+        try {
+          await rm.mutateAsync(rid);
+          toastRef?.current?.show({ severity: 'success', summary: 'Removido', detail: 'Leitura removida' });
+          remove(index);
+  } catch {
+          toastRef?.current?.show({ severity: 'error', summary: 'Erro', detail: 'Falha ao remover leitura' });
+        }
+      } else {
+        remove(index);
+      }
+  } catch {
+      try { remove(index); } catch { /* ignore */ }
+    }
+  };
+
   const onSave = handleSubmit(async (vals) => {
     try {
       // Build payload according to API: top-level plate_number + tally_operation_readings array
-      const payload: any = { service_order_id: currentOrderId };
-      payload.plate_number = vals[plateFieldName] ?? vals.plate_number ?? null;
+  const payload: any = { service_order_id: currentOrderId };
+  // include top-level id when updating existing operation
+  if (item && item.id) payload.id = item.id;
+  payload.plate_number = vals[plateFieldName] ?? vals.plate_number ?? null;
 
       const rawReadings = Array.isArray(vals.readings) ? vals.readings : [];
       const readingsPayload = rawReadings.map((r: any) => {
         const rec: any = {};
-        // map configured field names back to API keys
+  // map configured field names back to API keys
+  // include reading id when present so backend can distinguish update vs create
+  rec.id = r.id ?? r.reading_id ?? null;
         rec.site_id = r[siteFieldName] ?? null;
         rec.ticket = r[ticketFieldName] ?? null;
         rec.tare_weight = r[tareFieldName] ?? null;
@@ -238,11 +273,34 @@ export default function TallyItemForm({ item, isNew, fieldConfigs, parentStatus,
 
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [cancelConfirmVisible, setCancelConfirmVisible] = useState(false);
+  const [readingDeleteVisible, setReadingDeleteVisible] = useState(false);
+  const [readingDeleteIndex, setReadingDeleteIndex] = useState<number | null>(null);
 
   const onDelete = () => setDeleteConfirmVisible(true);
   const confirmDelete = async () => {
     if (!item || !item.id) { setDeleteConfirmVisible(false); return; }
     try { await deleteMutation.mutateAsync(item.id); toastRef?.current?.show({ severity: 'success', summary: 'Removido', detail: 'Registro removido' }); } catch { toastRef?.current?.show({ severity: 'error', summary: 'Erro', detail: 'Falha ao remover' }); } finally { setDeleteConfirmVisible(false); }
+  };
+  const showReadingDeleteConfirm = (index: number) => {
+    try {
+      setReadingDeleteIndex(index);
+      setReadingDeleteVisible(true);
+    } catch {
+      setReadingDeleteIndex(index);
+      setReadingDeleteVisible(true);
+    }
+  };
+
+  const confirmReadingDelete = async () => {
+    const idx = readingDeleteIndex;
+    setReadingDeleteVisible(false);
+    setReadingDeleteIndex(null);
+    if (idx == null) return;
+    try {
+      await onReadingRemove(idx);
+    } catch {
+      // onReadingRemove already shows toast on error
+    }
   };
   useEffect(() => { try { setValue('service_order_status', parentStatus as any); } catch { /* ignore */ } }, [setValue, parentStatus]);
 
@@ -257,8 +315,6 @@ export default function TallyItemForm({ item, isNew, fieldConfigs, parentStatus,
               <InputText className="w-full" value={String(field.value ?? '')} onChange={(e) => field.onChange((e.target as HTMLInputElement).value)} />
             )} />
           </div>
-
-          {/* Readings array (multiple) */}
           <div className="col-span-1 sm:col-span-2 lg:col-span-4">
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-medium">{t ? t('tally:ticket') : 'Readings'}</h4>
@@ -270,7 +326,7 @@ export default function TallyItemForm({ item, isNew, fieldConfigs, parentStatus,
                 <div className="flex items-center justify-between">
                   <div className="font-medium">{`Reading #${idx + 1}`}</div>
                   <div>
-                    <Button type="button" icon="pi pi-trash" className="p-button-text p-button-danger" onClick={() => remove(idx)} />
+                    <Button type="button" icon="pi pi-trash" className="p-button-text p-button-danger" onClick={() => showReadingDeleteConfirm(idx)} />
                   </div>
                 </div>
 
@@ -321,7 +377,7 @@ export default function TallyItemForm({ item, isNew, fieldConfigs, parentStatus,
                   <div className="flex flex-col">
                     <label className="block mb-1">{t ? t('tally:date') : 'Date and Time'}</label>
                     <Controller control={control} name={`readings.${idx}.${dateFieldName}`} render={({ field }) => (
-                      <Calendar showIcon showTime hourFormat="24" className="w-full" value={field.value as Date | null} onChange={(e: any) => field.onChange(e?.value ?? null)} hideOnDateTimeSelect />
+                      <Calendar showIcon showTime hourFormat="24" dateFormat='dd/mm/yy' className="w-full" value={field.value as Date | null} onChange={(e: any) => field.onChange(e?.value ?? null)} hideOnDateTimeSelect />
                     )} />
                   </div>
 
@@ -353,6 +409,14 @@ export default function TallyItemForm({ item, isNew, fieldConfigs, parentStatus,
           <div className="flex justify-end gap-2 mt-4">
             <Button label="Cancelar" onClick={() => setDeleteConfirmVisible(false)} />
             <Button label="Sim, excluir" className="p-button-danger" onClick={confirmDelete} disabled={mutationIsLoading(deleteMutation)} />
+          </div>
+        </Dialog>
+
+        <Dialog header="Confirmar exclusão da leitura" visible={readingDeleteVisible} onHide={() => { setReadingDeleteVisible(false); setReadingDeleteIndex(null); }}>
+          <p>Confirmar exclusão desta leitura?</p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button label="Cancelar" onClick={() => { setReadingDeleteVisible(false); setReadingDeleteIndex(null); }} />
+            <Button label="Sim, excluir" className="p-button-danger" onClick={confirmReadingDelete} />
           </div>
         </Dialog>
 
