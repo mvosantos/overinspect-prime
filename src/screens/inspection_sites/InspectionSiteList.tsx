@@ -7,34 +7,38 @@ import { InputText } from 'primereact/inputtext';
 import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ApiPaginatedResponse as PaginatedResponse } from '../../models/apiTypes';
-import type { BusinessUnit } from '../../models/businessUnit';
-import businessUnitService from '../../services/businessUnitService';
+import inspectionSiteService from '../../services/inspectionSiteService';
+import type { InspectionSite, PaginatedResponse } from '../../models/inspectionSite';
+import { usePermissions } from '../../contexts/PermissionContext';
 import { useTranslation } from 'react-i18next';
 
-
-export default function BusinessUnitList() {
-  const { t } = useTranslation(['business_units', 'common']);
+export default function InspectionSiteList() {
+  const { t } = useTranslation(['inspection_sites', 'common']);
   const toast = useRef<Toast>(null);
   const [globalFilter, setGlobalFilter] = useState('');
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
-  const [selectedDelete, setSelectedDelete] = useState<BusinessUnit | null>(null);
+  const [selectedDelete, setSelectedDelete] = useState<InspectionSite | null>(null);
+  const { permissions } = usePermissions();
   const queryClient = useQueryClient();
 
+  const [filters, setFilters] = useState<{ name?: string }>({});
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
 
-  const { data, isLoading } = useQuery<PaginatedResponse<BusinessUnit> | undefined>({
-  queryKey: ['business_uits', page, perPage, globalFilter, sortField, sortOrder],
-  queryFn: () => businessUnitService.list({ page, limit: perPage, search: globalFilter, sort: sortField, direction: sortOrder }),
+  const canUpdate = permissions.includes('inspection.inspection-site.update');
+  const canDelete = permissions.includes('inspection.inspection-site.destroy');
+
+  const { data, isLoading } = useQuery<PaginatedResponse<InspectionSite> | undefined>({
+    queryKey: ['inspection_sites', page, perPage, globalFilter, filters, sortField, sortOrder],
+    queryFn: () => inspectionSiteService.list({ page, limit: perPage, search: globalFilter, filters, sort: sortField, direction: sortOrder }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => businessUnitService.remove(id),
+    mutationFn: (id: string) => inspectionSiteService.remove(id),
     onSuccess: () => {
       toast.current?.show({ severity: 'success', summary: t("common:success"), detail: t("common:record_deleted_successfully") });
-      queryClient.invalidateQueries({ queryKey: ['business_units'] });
+      queryClient.invalidateQueries({ queryKey: ['inspection_sites'] });
       setSelectedDelete(null);
     },
     onError: () => {
@@ -42,10 +46,14 @@ export default function BusinessUnitList() {
     },
   });
 
-  const actionBody = (rowData: BusinessUnit) => (
+  const actionBody = (rowData: InspectionSite) => (
     <div className="flex gap-2">
-      <Button icon="pi pi-pencil" className="p-button-sm" onClick={() => window.open(`/management/business-units/${rowData.id}/edit`, '_blank') } />
-      <Button icon="pi pi-trash" className="p-button-sm p-button-danger" onClick={() => setSelectedDelete(rowData)} />
+      {canUpdate && (
+        <Button icon="pi pi-pencil" className="p-button-sm" onClick={() => window.open(`/records/inspection-sites/${rowData.id}/edit`, '_blank')} />
+      )}
+      {canDelete && (
+        <Button icon="pi pi-trash" className="p-button-sm p-button-danger" onClick={() => setSelectedDelete(rowData)} />
+      )}
     </div>
   );
 
@@ -53,7 +61,7 @@ export default function BusinessUnitList() {
     <div className="flex items-center justify-between">
       <div className="flex flex-col">
         <div className="mb-2">
-          <BreadCrumb model={[{ label: t("management:management") }, { label: t("business_units"), url: '/management/business-units' }]} />
+          <BreadCrumb model={[{ label: t('records:records') }, { label: t('inspection_sites:inspection_sites'), url: '/records/inspection-sites' }]} />
         </div>
         <div className="p-input-icon-left">
           <i className="pi pi-search" />
@@ -67,7 +75,9 @@ export default function BusinessUnitList() {
       <div className="flex flex-col items-end">
         <div className="mb-1 text-sm text-muted">{t("common:total")}: {data?.total ?? 0}</div>
         <div>
-          <Button label={t("common:new_record")} icon="pi pi-plus" onClick={() => window.open('/business-units/new/edit', '_blank')} />
+          {permissions.includes('admin.inspection_site.store') && (
+            <Button label="Adicionar" icon="pi pi-plus" onClick={() => window.open('/inspection-sites/new/edit', '_blank')} />
+          )}
         </div>
       </div>
     </div>
@@ -95,14 +105,17 @@ export default function BusinessUnitList() {
             setPage(1);
           }}
         >
-          <Column field="name" header={t("name")} sortable />
-          <Column field="internal_code" header={t("internal_code")} sortable />
+          <Column field="company.name" header={t("inspection_sites:company")} body={(row: InspectionSite) => row.company?.name} />
+          <Column field="name" header={t("inspection_sites:name")} sortable filter filterElement={
+            <InputText value={filters.name || ''} onChange={(e) => { setFilters(f => ({ ...f, name: (e.target as HTMLInputElement).value })); setPage(1); }} placeholder={t("common:search")} />
+          } />
+          <Column field="order" header={t("inspection_sites:order")} sortable />
           <Column header={t("common:actions")} body={actionBody} style={{ width: '8rem' }} />
         </DataTable>
       </div>
 
       <Dialog header={t("common:delete_record")} visible={!!selectedDelete} onHide={() => setSelectedDelete(null)}>
-        <p>{t("common:delete_record_confirmation")}</p>
+         <p>{t("common:delete_record_confirmation")}</p>
         <div className="flex justify-end gap-2 mt-4">
           <Button label={t("common:cancelUCase")} onClick={() => setSelectedDelete(null)} />
           <Button label={t("common:delete_yesUCase")} className="p-button-danger" onClick={() => selectedDelete && deleteMutation.mutate(selectedDelete.id)} />
