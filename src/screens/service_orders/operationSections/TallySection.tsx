@@ -28,7 +28,15 @@ export default function TallySection({ currentOrderId, fieldConfigs }: Props) {
 
   const [page, setPage] = useState(1);
   const [perPage] = useState(20);
-  const [search, setSearch] = useState('');
+  const storageSearchKey = (() => `tally_section:search:${currentOrderId ?? 'global'}`)();
+  const [search, setSearchState] = useState<string>(() => {
+    try { const raw = sessionStorage.getItem(storageSearchKey); if (raw != null) return String(JSON.parse(raw)); } catch { /* ignore */ }
+    return '';
+  });
+  const setSearch = (s: string) => {
+    try { sessionStorage.setItem(storageSearchKey, JSON.stringify(s)); } catch { /* ignore */ }
+    setSearchState(s);
+  };
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [creatingNew, setCreatingNew] = useState(false);
   const storageKey = (() => `tally_section:active_indexes:${currentOrderId ?? 'global'}`)();
@@ -46,8 +54,12 @@ export default function TallySection({ currentOrderId, fieldConfigs }: Props) {
 
   const { data, refetch } = useQuery<ApiPaginatedResponse<TallyOperation>, Error>({
     queryKey,
-    queryFn: () => operationTallyService.list({ page, per_page: perPage, filters: { service_order_id: currentOrderId ?? undefined, plate_number: debouncedSearch } as any } as any),
+    queryFn: () => operationTallyService.list({ page, per_page: perPage, service_order_id: currentOrderId ?? undefined, plate_number: debouncedSearch } as any),
     enabled: Boolean(currentOrderId),
+  // prevent implicit refetch on window focus/reconnect/mount which may happen before our debounced search is applied
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+  refetchOnMount: false,
   });
 
   const createMutation = useMutation<TallyOperation, Error, any>({ mutationFn: (payload: any) => operationTallyService.create(payload), onSuccess: () => { void qc.invalidateQueries({ queryKey: ['operation-tallies', currentOrderId] } as any); void refetch(); } });

@@ -44,7 +44,13 @@ export default function FormListSection({ title, items, total = 0, page, perPage
         </div>
         <div className="flex items-center gap-2">
           <div className="text-sm text-muted">Total: {total}</div>
-          <InputText placeholder="Buscar" value={localSearch} onChange={(e) => { setLocalSearch((e.target as HTMLInputElement).value); }} onBlur={() => setSearch(localSearch)} />
+          <InputText
+            placeholder="Buscar"
+            value={localSearch}
+            onChange={(e) => { setLocalSearch((e.target as HTMLInputElement).value); }}
+            onBlur={() => setSearch(localSearch)}
+            onKeyDown={(e) => { if ((e as React.KeyboardEvent<HTMLInputElement>).key === 'Enter') { setSearch(localSearch); } }}
+          />
         </div>
       </div>
 
