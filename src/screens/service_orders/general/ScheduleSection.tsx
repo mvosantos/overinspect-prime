@@ -39,7 +39,9 @@ export default function ScheduleSection(props?: Props) {
   (serviceTypeFieldsLocal || []).forEach((f) => { if (f && typeof f === 'object' && 'name' in f) byNameLocal[f.name] = f as FieldMeta; });
 
   const SCHEDULE_FIELD_NAMES: Record<string, string> = {
-    userField: 'schedules_user_idschedules_user_id',
+    userField: 'schedules_user_id',
+    dateField: 'schedules_date',
+    dateEndField: 'schedules_end_date',
   };
 
   const fieldConfigs = Object.fromEntries(Object.entries(SCHEDULE_FIELD_NAMES).map(([k, svcName]) => [k, byNameLocal[svcName]])) as Record<string, FieldMeta | undefined>;
@@ -51,7 +53,8 @@ export default function ScheduleSection(props?: Props) {
 
   const wrapSetUserCache = (updater: (prev: Record<string, User>) => Record<string, User>) => setUserCache((prev) => updater(prev));
 
-  const { dateField, userField } = fieldConfigs as Record<string, FieldMeta | undefined>;
+  const { dateField, dateEndField, userField } = fieldConfigs as Record<string, FieldMeta | undefined>;
+  
 
   // pre-seed schedules from server source if provided and form is empty
   useEffect(() => {
@@ -67,14 +70,14 @@ export default function ScheduleSection(props?: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const hasVisible = (dateField?.visible || userField?.visible) ?? true;
+  const hasVisible = (dateField?.visible || dateEndField?.visible || userField?.visible) ?? true;
   if (!hasVisible) return null;
 
   return (
     <Card>
       <div className="space-y-4">
   {schedules.map((_s, idx) => (
-          <div key={idx} className="grid items-end grid-cols-1 gap-4 md:grid-cols-6">
+          <div key={idx} className="grid items-end grid-cols-1 gap-4 md:grid-cols-8">
             {dateField?.visible !== false && (
             <div className="md:col-span-2">
               <label className="block mb-1">{t('new_service_order:inspection_date')}{dateField?.required ? ' *' : ''}</label>
@@ -83,6 +86,15 @@ export default function ScheduleSection(props?: Props) {
               )} />
             </div>
             )}
+
+            {dateEndField?.visible !== false && (
+            <div className="md:col-span-2">
+              <label className="block mb-1">{t('new_service_order:inspection_end_date')}{dateEndField?.required ? ' *' : ''}</label>
+              <Controller control={control} name={`schedules.${idx}.end_date`} render={({ field }) => (
+                <Calendar showIcon className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
+              )} />
+            </div>
+            )}            
 
             {userField?.visible !== false && (
             <div className="md:col-span-3">

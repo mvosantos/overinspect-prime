@@ -876,7 +876,7 @@ export default function NewServiceOrder() {
           finalSchedules = schedulesFromForm;
         } else if (Array.isArray(schedulesFromData)) {
           const sample = (schedulesFromData as unknown[])[0];
-          const looksLikePartial = sample && typeof sample === 'object' && ('user_id' in (sample as Record<string, unknown>) || 'date' in (sample as Record<string, unknown>));
+          const looksLikePartial = sample && typeof sample === 'object' && ('user_id' in (sample as Record<string, unknown>) || 'date' in (sample as Record<string, unknown>)|| 'end_date' in (sample as Record<string, unknown>));
           try {
             finalSchedules = looksLikePartial ? normalizePartialSchedules(schedulesFromData as Partial<SchedulesOrderService>[]) : (schedulesFromData as FormScheduleItem[]);
           } catch {

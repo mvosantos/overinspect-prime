@@ -72,7 +72,8 @@ export interface SchedulesOrderService {
   readonly id: string;
   user_id: string;
   user?: UserUpdate;
-  date: Date;
+  date?: Date;
+  end_date?: Date;
   created_at: Date;
   updated_at: Date;
   deleted_at?: Date;

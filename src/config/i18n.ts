@@ -418,6 +418,7 @@ const resources = {
       container_number: "Container",
       inspector_name: "Inspetor",
       inspection_date: "Data da inspeção",
+      inspection_end_date: "Data final da inspeção",
       os_number: "Número da OS",
       attachments: "Anexos",
       file_name: "Arquivo",
