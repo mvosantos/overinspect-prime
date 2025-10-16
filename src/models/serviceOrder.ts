@@ -252,6 +252,7 @@ export type FormScheduleItemSubmission = {
   id?: string;
   user_id?: string | null;
   date?: string | Date | null;
+  end_date?: string | Date | null;
 };
 
 export type ServiceOrderSubmission = Record<string, unknown> & {

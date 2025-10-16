@@ -82,7 +82,7 @@ export default function ScheduleSection(props?: Props) {
             <div className="md:col-span-2">
               <label className="block mb-1">{t('new_service_order:inspection_date')}{dateField?.required ? ' *' : ''}</label>
               <Controller control={control} name={`schedules.${idx}.date`} render={({ field }) => (
-                <Calendar showIcon className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
+                <Calendar showIcon dateFormat="dd/mm/yy" hourFormat="24"  className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
               )} />
             </div>
             )}
@@ -91,7 +91,7 @@ export default function ScheduleSection(props?: Props) {
             <div className="md:col-span-2">
               <label className="block mb-1">{t('new_service_order:inspection_end_date')}{dateEndField?.required ? ' *' : ''}</label>
               <Controller control={control} name={`schedules.${idx}.end_date`} render={({ field }) => (
-                <Calendar showIcon className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
+                <Calendar showIcon dateFormat="dd/mm/yy" hourFormat="24" className="w-full" value={field.value as Date | undefined} onChange={(e: { value?: Date | Date[] | null }) => field.onChange(e?.value ?? null)} />
               )} />
             </div>
             )}            

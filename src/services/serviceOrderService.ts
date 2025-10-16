@@ -1,7 +1,7 @@
 import BaseService from './BaseService';
 import type { RequestParams } from './BaseService';
 import api from './api';
-import { formatForPayload, formatForPayloadDateTime } from '../utils/dateHelpers';
+import { formatForPayload, formatForPayloadDateTime, tryParseDate } from '../utils/dateHelpers';
 import { formatNumberFixed } from '../utils/numberHelpers';
 import AttachmentService from './AttachmentService';
 import type { ApiPaginatedResponse } from '../models/apiTypes';
@@ -170,6 +170,7 @@ class ServiceOrderService extends BaseService {
           user_id: ss.user_id ?? (ss.user && (ss.user as Record<string, unknown>).id),
           user: ss.user,
           date: this.maybeDate(ss.date),
+          end_date: this.maybeDate(ss.end_date),
           created_at: this.maybeDate(ss.created_at),
           updated_at: this.maybeDate(ss.updated_at),
         };
@@ -195,8 +196,8 @@ class ServiceOrderService extends BaseService {
   maybeDate(v: unknown) {
     if (v instanceof Date) return v;
     if (typeof v === 'string' || typeof v === 'number') {
-      const d = new Date(v as string);
-      return Number.isNaN(d.getTime()) ? v : d;
+      const parsed = tryParseDate(v);
+      return parsed ?? v;
     }
     return v;
   }

@@ -6,7 +6,7 @@ export function mapServicesSourceToForm(src?: ServiceOrder['services']): FormSer
   if (!Array.isArray(src)) return [];
   return src.map((s) => {
     try {
-  const o = (s as unknown) as Record<string, unknown> | undefined;
+      const o = (s as unknown) as Record<string, unknown> | undefined;
       let serviceId: string | null = null;
       if (o) {
         if (typeof o.service_id === 'string') serviceId = o.service_id;
@@ -38,7 +38,7 @@ export function mapPaymentsSourceToForm(src?: ServiceOrder['payments']): FormPay
   if (!Array.isArray(src)) return [];
   return src.map((p) => {
     try {
-  const o = (p as unknown) as Record<string, unknown> | undefined;
+      const o = (p as unknown) as Record<string, unknown> | undefined;
       const id = o && (typeof o.id === 'string' || typeof o.id === 'number') ? String(o.id) : undefined;
       const description = o && typeof o.description === 'string' ? o.description : '';
       const document_type_id = o && (typeof o.document_type_id === 'string' || typeof o.document_type_id === 'number') ? String(o.document_type_id) : null;
@@ -56,13 +56,15 @@ export function mapPaymentsSourceToForm(src?: ServiceOrder['payments']): FormPay
 // Map server `schedules` into form schedules
 export function mapSchedulesSourceToForm(src?: ServiceOrder['schedules']): FormScheduleItemSubmission[] {
   if (!Array.isArray(src)) return [];
+  console.log(src);
   return src.map((s) => {
     try {
-  const o = (s as unknown) as Record<string, unknown> | undefined;
+      const o = (s as unknown) as Record<string, unknown> | undefined;
       const id = o && (typeof o.id === 'string' || typeof o.id === 'number') ? String(o.id) : undefined;
       const user_id = o && (typeof o.user_id === 'string' || typeof o.user_id === 'number') ? String(o.user_id) : null;
       const date = o && (typeof o.date === 'string' || o.date instanceof Date) ? (o.date as string | Date) : null;
-      return { id, user_id, date } as FormScheduleItemSubmission;
+      const end_date = o && (typeof o.end_date === 'string' || o.end_date instanceof Date) ? (o.end_date as string | Date) : null;
+      return { id, user_id, date, end_date } as FormScheduleItemSubmission;
     } catch {
       return { id: undefined, user_id: null, date: null } as FormScheduleItemSubmission;
     }

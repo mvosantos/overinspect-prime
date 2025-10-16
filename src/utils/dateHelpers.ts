@@ -1,12 +1,23 @@
 import { format, parseISO, isValid, parse } from 'date-fns';
 
 // Try parse flexible ISO / common formats
-const tryParseDate = (v: unknown): Date | null => {
+export const tryParseDate = (v: unknown): Date | null => {
   if (!v) return null;
   if (v instanceof Date) return v;
   if (typeof v !== 'string') return null;
 
-  // try parse ISO first
+  // If the string is a date-only like 'YYYY-MM-DD', parse it as local date
+  // to avoid timezone shifts that happen when treating it as ISO UTC.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    try {
+      const p = parse(v, 'yyyy-MM-dd', new Date());
+      if (isValid(p)) return p;
+    } catch {
+      // fallthrough to other parsers
+    }
+  }
+
+  // try parse ISO next (covers full ISO datetimes)
   const d1 = parseISO(v);
   if (isValid(d1)) return d1;
 

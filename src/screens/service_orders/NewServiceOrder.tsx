@@ -217,8 +217,20 @@ export default function NewServiceOrder() {
       total_price: p?.total_price ?? '0.00',
     }));
 
-    const schSource: NonNullable<ServiceOrder['schedules']> = (Array.isArray(fo.schedules) ? fo.schedules : []) as NonNullable<ServiceOrder['schedules']>;
-    const schedulesArr = mapSchedulesSourceToForm(schSource as ServiceOrder['schedules']).map((r) => ({ ...r, date: parseDate(r.date) } as unknown as Record<string, unknown>));
+    // Accept either `schedules` or legacy `service_order_schedules` from the API
+    const rawSch = (() => {
+      try {
+        const rec = fo as unknown as Record<string, unknown>;
+        if (Array.isArray(rec.schedules)) return rec.schedules;
+        if (Array.isArray(rec.service_order_schedules)) return rec.service_order_schedules;
+      } catch {
+        // ignore
+      }
+      return [] as unknown;
+    })();
+
+    const schSource: NonNullable<ServiceOrder['schedules']> = (Array.isArray(rawSch) ? (rawSch as NonNullable<ServiceOrder['schedules']>) : []) as NonNullable<ServiceOrder['schedules']>;
+    const schedulesArr = mapSchedulesSourceToForm(schSource as ServiceOrder['schedules']).map((r) => ({ ...r, date: parseDate(r.date), end_date: parseDate((r as import('../../models/serviceOrder').FormScheduleItemSubmission).end_date) } as unknown as Record<string, unknown>));
 
   const attachmentsArr = Array.isArray(fo.attachments) ? fo.attachments : [];
 
@@ -869,6 +881,7 @@ export default function NewServiceOrder() {
           id: s.id as string | undefined,
           user_id: (s.user_id as string | null | undefined) ?? safeId(s.user) ?? null,
           date: parseToDateOrOriginal((s.date as unknown)) as string | Date | null,
+          end_date: parseToDateOrOriginal((s.end_date as unknown)) as string | Date | null,
         }));
 
         let finalSchedules: FormScheduleItem[] = [];
@@ -876,7 +889,7 @@ export default function NewServiceOrder() {
           finalSchedules = schedulesFromForm;
         } else if (Array.isArray(schedulesFromData)) {
           const sample = (schedulesFromData as unknown[])[0];
-          const looksLikePartial = sample && typeof sample === 'object' && ('user_id' in (sample as Record<string, unknown>) || 'date' in (sample as Record<string, unknown>)|| 'end_date' in (sample as Record<string, unknown>));
+          const looksLikePartial = sample && typeof sample === 'object' && ('user_id' in (sample as Record<string, unknown>) || 'date' in (sample as Record<string, unknown>) || 'end_date' in (sample as Record<string, unknown>));
           try {
             finalSchedules = looksLikePartial ? normalizePartialSchedules(schedulesFromData as Partial<SchedulesOrderService>[]) : (schedulesFromData as FormScheduleItem[]);
           } catch {
