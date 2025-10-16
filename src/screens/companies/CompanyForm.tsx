@@ -5,8 +5,8 @@ import { useForm } from 'react-hook-form';
 import { useParams, useNavigate } from 'react-router-dom';
 import { InputText } from 'primereact/inputtext';
 import { BreadCrumb } from 'primereact/breadcrumb';
-import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
+import SaveFooter from '../../components/SaveFooter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import companyService from '../../services/companyService';
 import type { Company } from '../../models/company';
@@ -85,6 +85,20 @@ export default function CompanyForm() {
     else createMutation.mutate(values);
   }
 
+  const mutationIsLoading = (m: unknown) => {
+    try {
+      const mm = m as Record<string, unknown>;
+      const state = typeof mm.state === 'string' ? String(mm.state) : undefined;
+      const fetchStatus = typeof mm.fetchStatus === 'string' ? String(mm.fetchStatus) : undefined;
+      const status = typeof mm.status === 'string' ? String(mm.status) : undefined;
+      return state === 'loading' || fetchStatus === 'fetching' || status === 'pending';
+    } catch {
+      return false;
+    }
+  };
+
+  const submitting = mutationIsLoading(createMutation) || mutationIsLoading(updateMutation);
+
   return (
     <div>
       <Toast ref={toast} position="top-right" />
@@ -118,12 +132,9 @@ export default function CompanyForm() {
             <InputText {...register('url_address' as const)} className="w-full" />
           </div>
 
-          <div className="flex justify-end gap-2 mt-4">
-            <Button label={t("common:cancel")} className="p-button-secondary" onClick={() => navigate('/management/companies')} />
-            <Button label={id ? t("common:save_record") : t("common:create_record")} type="submit" />
-          </div>
         </form>
       </div>
+      <SaveFooter loading={submitting} onSave={() => handleSubmit(onSubmit)()} onCancel={() => navigate('/management/companies')} />
     </div>
   );
 }

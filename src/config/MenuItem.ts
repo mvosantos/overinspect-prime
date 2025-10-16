@@ -63,6 +63,12 @@ export const menuItems: MenuGroup[] = [
         permission: "admin.subsidiary.index"
       },
       {
+        title: "management:inspection_sites",
+        href: "/management/inspection-sites",
+        icon: MapPinHouse,
+        permission: "admin.inspection_site.index"
+      },
+      {
         title: "management:business_units",
         href: "/management/business-units",
         icon: BriefcaseBusiness,
@@ -128,6 +134,12 @@ export const menuItems: MenuGroup[] = [
         href: "/records/cities",
         icon: MapPinned,
         permission: "admin.city.index"
+      },
+      {
+        title: "records:inspection_sites",
+        href: "/records/inspection-sites",
+        icon: MapPinHouse,
+        permission: "inspection.inspection-site.index"
       },
       {
         title: "records:inspection_locations",

@@ -60,10 +60,10 @@ const resources = {
       cancelUCase: "CANCELAR",
       saveUCase: "SALVAR",
       savingUCase: "SALVANDO",
-  saving: "Salvando...",
-      record_saved_successfuly: "Registro salvo com sucesso",
-      record_edited_successfuly: "Registro editado com sucesso",
-      record_deleted_successfuly: "Registro excluído com sucesso",
+      saving: "Salvando...",
+      record_saved_successfully: "Registro salvo com sucesso",
+      record_updated_successfully: "Registro editado com sucesso",
+      record_deleted_successfully: "Registro excluído com sucesso",
       record_saved_error: "Erro ao salvar o registro",
       record_edited_error: "Erro ao editar o registro",
       record_deleted_error: "Erro ao excluir o registro",
@@ -83,13 +83,14 @@ const resources = {
       preview: "Pré-visualizar",
       download: "Baixar",
       preview_not_available: "Pré-visualização não disponível",
+      general_search: "Busca geral",
     },
     management: {
       management: "Gestão",
       companies: "Empresas",
       subsidiaries: "Filiais",
       users: "Usuários",
-      business_units: "Unidades de negócio",
+      business_units: "Unidades de negócio"
     },
     records: {
       records: "Registros",
@@ -118,7 +119,15 @@ const resources = {
       weighing_ryles: "Regras de pesajgem",
       weight_types: "Tipos de pesagem",
       document_types: "Tipos de documentos",
-      currencies: "Moedas"
+      currencies: "Moedas",
+      inspection_sites: "Pontos de inspeção",
+    },
+    inspection_sites: {
+      inspection_sites: "Pontos de inspeção",
+      list: "Lista de pontos de inspeção",
+      name: "Nome",
+      company: "Empresa",
+      order: "Ordem",
     },
     clients: {
       clients: "Clientes",
@@ -180,7 +189,9 @@ const resources = {
       list: "Lista de locais de inspeção",
       name: "Nome",
       description: "Descrição",
-      address: "Endereço"
+      address: "Endereço",
+      company: "Empresa",
+      inspection_site: "Ponto de inspeção",
     },
     weathers: {
       weathers: "Climas",
@@ -586,10 +597,10 @@ const resources = {
       cancelUCase: "CANCEL",
       saveUCase: "SAVE",
       savingUCase: "SAVING",
-  saving: "Saving...",
-      record_saved_successfuly: "Record saved  successfully",
-      record_edited_successfuly: "Record edited  successfully",
-      record_deleted_successfuly: "Record deleted successfully",
+      saving: "Saving...",
+      record_saved_successfully: "Record saved  successfully",
+      record_updated_successfully: "Record edited  successfully",
+      record_deleted_successfully: "Record deleted successfully",
       record_saved_error: "Error saving record",
       record_edited_error: "Error editing record",
       record_deleted_error: "Error deleting record",
@@ -608,14 +619,15 @@ const resources = {
       scroll_to_top: "Scroll to top",
       preview: "Preview",
       download: "Download",
-      preview_not_available: "Preview not available"      
+      preview_not_available: "Preview not available",
+      general_search: "General search",
     },
     management: {
       management: "Management",
       companies: "Companies",
       subsidiaries: "Subsidiaries",
       users: "Users",
-      business_units: "Business Units",
+      business_units: "Business Units"
     },
     records: {
       records: "Records",
@@ -645,7 +657,15 @@ const resources = {
       vessel_types: "Vessel Types",
       weight_types: "Weight Types",
       document_types: "Document types",
-      currencies: "Currencies"
+      currencies: "Currencies",
+      inspection_sites: "Inspection Sites",
+    },
+    inspection_sites: {
+      inspection_sites: "Inspection Sites",
+      list: "Inspection sites list",
+      name: "Name",
+      company: "Company",
+      order: "Order",
     },
     clients: {
       clients: "Clients",
@@ -707,7 +727,9 @@ const resources = {
       list: "List of inspection sites",
       name: "Name",
       description: "Description",
-      address: "Address"
+      address: "Address",
+      company: "Company",
+      inspection_site: "Inspection point",
     },
     weathers: {
       weathers: "Weather",
@@ -947,9 +969,9 @@ const resources = {
       cancelUCase: "CANCELAR",
       saveUCase: "REGISTRAR",
       savingUCase: "REGISTRANDO",
-      record_saved_successfuly: "Registro salvo con éxito",
-      record_edited_successfuly: "Registro editado con éxito",
-      record_deleted_successfuly: "Registro eliminado con éxito",
+      record_saved_successfully: "Registro salvo con éxito",
+      record_updated_successfully: "Registro editado con éxito",
+      record_deleted_successfully: "Registro eliminado con éxito",
       record_saved_error: "¡Error al guardar el registro",
       record_edited_error: "¡Error al editar el registro",
       record_deleted_error: "¡Error al eliminar el registro",
@@ -968,7 +990,8 @@ const resources = {
       scroll_to_top: "Ir arriba",
       preview: "Vista previa",
       download: "Descargar",
-      preview_not_available: "Vista previa no disponible"
+      preview_not_available: "Vista previa no disponible",
+      general_search: "Búsqueda general",
     },
     management: {
       management: "Gestión",
@@ -1005,7 +1028,15 @@ const resources = {
       vessel_types: "Tipos de barcos",
       weight_types: "Tipos de peso",
       document_types: "Tipos de documentos",
-      currencies: "Monedas"
+      currencies: "Monedas",
+      inspection_sites: "Pontos de inspeção",
+    },
+    inspection_sites: {
+      inspection_sites: "Pontos de inspeção",
+      list: "Lista de pontos de inspeção",
+      name: "Nome",
+      company: "Empresa",
+      order: "Ordem",
     },
     clients: {
       clients: "Clientes",
@@ -1067,7 +1098,9 @@ const resources = {
       list: "Listado de sitios de inspección",
       name: "Nombre",
       description: "Description",
-      address: "Dirección"
+      address: "Dirección",
+      company: "Empresa",
+      inspection_site: "Punto de inspección",
     },
     weathers: {
       weathers: "Climas",

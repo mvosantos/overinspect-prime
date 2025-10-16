@@ -5,8 +5,8 @@ import { useForm } from 'react-hook-form';
 import { useParams, useNavigate } from 'react-router-dom';
 import { InputText } from 'primereact/inputtext';
 import { BreadCrumb } from 'primereact/breadcrumb';
-import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
+import SaveFooter from '../../components/SaveFooter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import businessUnitService from '../../services/businessUnitService';
 import { useTranslation } from 'react-i18next';
@@ -63,7 +63,7 @@ export default function BusinessUnitForm() {
   const updateMutation = useMutation({
     mutationFn: (payload: FormValues) => businessUnitService.update(id as string, payload as BusinessUnit),
     onSuccess: (businessUnit) => {
-      toast.current?.show?.({ severity: 'success', summary: t("common:success"), detail: t("common:record_updated_successfuly") });
+      toast.current?.show?.({ severity: 'success', summary: t("common:success"), detail: t("common:record_updated_successfully") });
       if (businessUnit) {
         setValue('name', businessUnit.name ?? '');
         setValue('internal_code', businessUnit.internal_code ?? '');
@@ -77,6 +77,20 @@ export default function BusinessUnitForm() {
     if (id) updateMutation.mutate(values);
     else createMutation.mutate(values);
   }
+
+  const mutationIsLoading = (m: unknown) => {
+    try {
+      const mm = m as Record<string, unknown>;
+      const state = typeof mm.state === 'string' ? String(mm.state) : undefined;
+      const fetchStatus = typeof mm.fetchStatus === 'string' ? String(mm.fetchStatus) : undefined;
+      const status = typeof mm.status === 'string' ? String(mm.status) : undefined;
+      return state === 'loading' || fetchStatus === 'fetching' || status === 'pending';
+    } catch {
+      return false;
+    }
+  };
+
+  const submitting = mutationIsLoading(createMutation) || mutationIsLoading(updateMutation);
 
   return (
     <div>
@@ -100,12 +114,9 @@ export default function BusinessUnitForm() {
               <InputText {...register('internal_code' as const)} className="w-full" />
             </div>
           </div>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button label="Cancelar" className="p-button-secondary" onClick={() => navigate('/management/business-units')} />
-            <Button label={id ? t("common:save_record") : t("common:create_record")} type="submit" />
-          </div>
         </form>
       </div>
+      <SaveFooter loading={submitting} onSave={() => handleSubmit(onSubmit)()} onCancel={() => navigate('/management/business-units')} />
     </div>
   );
 }

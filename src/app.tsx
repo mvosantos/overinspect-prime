@@ -15,6 +15,10 @@ import ServiceOrderList from './screens/service_orders/ServiceOrderList';
 import NewServiceOrder from './screens/service_orders/NewServiceOrder';
 import BusinessUnitList from "./screens/business_units/BusinessUnitList";
 import BusinessUnitForm from "./screens/business_units/BusinessUnitForm";
+import InspectionSiteList from './screens/inspection_sites/InspectionSiteList';
+import InspectionSiteForm from './screens/inspection_sites/InspectionSiteForm';
+import SiteList from './screens/sites/SiteList';
+import SiteForm from './screens/sites/SiteForm';
 
 export default function App() {
   const { theme, setTheme } = useTheme();
@@ -122,6 +126,48 @@ export default function App() {
           <PrivateRoute>
             <AuthLayout>
               <NewServiceOrder />
+            </AuthLayout>
+          </PrivateRoute>
+        } />
+        <Route path="/records/inspection-sites" element={
+          <PrivateRoute>
+            <AuthLayout>
+              <InspectionSiteList />
+            </AuthLayout>
+          </PrivateRoute>
+        } />
+        <Route path="/records/inspection-sites/:id/edit" element={
+          <PrivateRoute>
+            <AuthLayout>
+              <InspectionSiteForm />
+            </AuthLayout>
+          </PrivateRoute>
+        } />
+        <Route path="/records/inspection-sites/new/edit" element={
+          <PrivateRoute>
+            <AuthLayout>
+              <InspectionSiteForm />
+            </AuthLayout>
+          </PrivateRoute>
+        } />
+        <Route path="/records/sites" element={
+          <PrivateRoute>
+            <AuthLayout>
+              <SiteList />
+            </AuthLayout>
+          </PrivateRoute>
+        } />
+        <Route path="/records/sites/:id/edit" element={
+          <PrivateRoute>
+            <AuthLayout>
+              <SiteForm />
+            </AuthLayout>
+          </PrivateRoute>
+        } />
+        <Route path="/records/sites/new/edit" element={
+          <PrivateRoute>
+            <AuthLayout>
+              <SiteForm />
             </AuthLayout>
           </PrivateRoute>
         } />

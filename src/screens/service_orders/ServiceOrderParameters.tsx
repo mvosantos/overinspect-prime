@@ -135,7 +135,7 @@ export default function ServiceOrderParameters() {
             // Try to call update if available on the service; fallback to direct put if not.
             // Use the dedicated updateFields which PUTs to /inspection/service-type-field/{service_type_id}
             await (serviceTypeService as unknown as { updateFields: (id: string, f: unknown) => Promise<unknown> }).updateFields(selectedServiceTypeId, fields);
-            toast.current?.show({ severity: 'success', summary: t('common:record_saved_successfuly') });
+            toast.current?.show({ severity: 'success', summary: t('common:record_saved_successfully') });
         } catch {
             toast.current?.show({ severity: 'error', summary: t('common:fetch_error') });
         } finally {

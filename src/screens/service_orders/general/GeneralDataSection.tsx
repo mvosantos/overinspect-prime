@@ -61,7 +61,8 @@ type Props = {
 // explicit calendar change event type for primereact Calendar
 type CalendarChangeEvent = { value?: Date | Date[] | null };
 
-export default function GeneralDataSection({ serviceTypeId, fields = [], register, control, errors = {}, fieldConfigs = {}, serviceTypeFields = [] }: Props) {
+export default function GeneralDataSection(props: Props) {
+  const { serviceTypeId, fields = [], register, control, errors = {} } = props;
   const { t } = useTranslation('new_service_order');
   const [subsSuggestions, setSubsSuggestions] = useState<Subsidiary[]>([]);
   const [businessUnitSuggestions, setBusinessUnitSuggestions] = useState<BusinessUnit[]>([]);

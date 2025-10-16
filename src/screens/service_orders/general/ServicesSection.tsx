@@ -12,7 +12,6 @@ import { useTranslation } from 'react-i18next';
 import serviceService from '../../../services/serviceService';
 import type { Service } from '../../../models/service';
 import type { ServiceOrderService } from '../../../models/serviceOrder';
-import type { ServiceOrder } from '../../../models/serviceOrder';
 import { useQueryClient } from '@tanstack/react-query';
 // normalizeListResponse removed; using createAutocompleteComplete helper
 
