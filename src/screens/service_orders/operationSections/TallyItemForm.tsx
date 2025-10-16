@@ -15,6 +15,7 @@ import { createAutocompleteComplete } from '../../../utils/autocompleteHelpers';
 import { makeAutoCompleteOnChange, resolveAutoCompleteValue, seedCachedObject, resolveFieldName, resolveFieldDefault } from '../../../utils/formHelpers';
 import { parseToDateOrOriginal } from '../../../utils/dateHelpers';
 import siteService from '../../../services/siteService';
+import { useRef } from 'react';
 
 const ReadingSchema = z.object({
   id: z.string().optional(),
@@ -111,9 +112,23 @@ export default function TallyItemForm({ item, isNew, fieldConfigs, parentStatus,
   })) : [];
 
   const defaultVals: any = { ...(item ?? {}), plate_number: resolveFieldDefault(plateField, item?.plate_number), readings: defaultReadings };
+  // Try to restore a draft from sessionStorage if present
+  const draftKey = `draft_tally:${currentOrderId ?? 'none'}:${item && item.id ? item.id : 'new'}`;
+  let restored: any = null;
+  try {
+    const raw = sessionStorage.getItem(draftKey);
+    if (raw) {
+      restored = JSON.parse(raw);
+    }
+  } catch {
+    restored = null;
+  }
 
-  const form = useForm<any>({ resolver: zodResolver(ItemSchema), defaultValues: { ...defaultVals, service_order_status: parentStatus } as any });
+  const initialDefaults = restored && typeof restored === 'object' ? { ...defaultVals, ...(restored ?? {}) } : { ...defaultVals };
+
+  const form = useForm<any>({ resolver: zodResolver(ItemSchema), defaultValues: { ...initialDefaults, service_order_status: parentStatus } as any });
   const { handleSubmit, control, setValue } = form;
+  const saveDraftTimer = useRef<number | null>(null as unknown as number | null);
 
   // site autocomplete (shared suggestions/cache for all readings)
   const [siteSuggestions, setSiteSuggestions] = useState<any[]>([]);
@@ -240,6 +255,8 @@ export default function TallyItemForm({ item, isNew, fieldConfigs, parentStatus,
         toastRef?.current?.show({ severity: 'success', summary: 'Atualizado', detail: `Registro atualizado` });
       }
       setLocalSubmitting(false);
+  // clear draft on successful save
+  try { sessionStorage.removeItem(draftKey); } catch { /* ignore */ }
     } catch (err: any) {
       try {
         const body = err?.response?.data ?? err?.data ?? null;
@@ -272,6 +289,35 @@ export default function TallyItemForm({ item, isNew, fieldConfigs, parentStatus,
       toastRef?.current?.show({ severity: 'error', summary: 'Erro', detail: 'Falha ao salvar' });
     }
   });
+
+  // persist form draft to sessionStorage on change (debounced)
+  useEffect(() => {
+    const sub = (form as any).watch(() => {
+      try {
+        if (saveDraftTimer.current) window.clearTimeout(saveDraftTimer.current);
+        saveDraftTimer.current = window.setTimeout(() => {
+          try {
+            const vals = (form as any).getValues();
+            // only persist relevant fields to keep storage small
+            const serializable = { plate_number: vals.plate_number, readings: vals.readings };
+            sessionStorage.setItem(draftKey, JSON.stringify(serializable));
+          } catch {
+            // ignore storage errors
+          }
+        }, 400);
+      } catch (e) {
+        // ignore
+        void e;
+      }
+    });
+      return () => {
+      try {
+        if (saveDraftTimer.current) window.clearTimeout(saveDraftTimer.current);
+      } catch (e) { void e; }
+      try { if (typeof sub === 'function') sub(); } catch (e) { void e; }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [cancelConfirmVisible, setCancelConfirmVisible] = useState(false);
