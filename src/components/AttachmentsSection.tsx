@@ -8,6 +8,9 @@ import { Dialog } from 'primereact/dialog';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 import AttachmentService from '../services/AttachmentService';
 import serviceOrderStatusService from '../services/serviceOrderStatusService';
+import attachmentTypeService from '../services/attachmentTypeService';
+import { ATTACHMENT_READING_SYSTEM_AREA_ID } from '../config/attachment';
+import { Dropdown } from 'primereact/dropdown';
 import { useOptionalAttachmentsDrafts } from '../contexts/AttachmentsDraftContext';
 import { Toast } from 'primereact/toast';
 
@@ -130,6 +133,7 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
           path: path,
           created_at: undefined,
           fileObject: f,
+          type_id: null,
         };
         append(item as any);
         if (attachmentsDrafts && typeof attachmentsDrafts.addAttachment === 'function') {
@@ -161,6 +165,24 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
       // ignore
     }
   }, [append, path, attachmentsDrafts, ctx, canAttach, computeInstanceKey]);
+
+  // attachment types for the dropdown
+  const [attachmentTypes, setAttachmentTypes] = useState<Array<{ id: string; name: string }>>([]);
+  useEffect(() => {
+    let mounted = true;
+    void attachmentTypeService.listTypes({ filters: { system_area_id: ATTACHMENT_READING_SYSTEM_AREA_ID } }).then((resp) => {
+      if (!mounted) return;
+      try {
+        const opts = (resp && Array.isArray((resp as any).data)) ? (resp as any).data.map((d: any) => ({ id: d.id, name: d.name })) : [];
+        setAttachmentTypes(opts);
+      } catch {
+        setAttachmentTypes([]);
+      }
+    }).catch(() => {
+      if (mounted) setAttachmentTypes([]);
+    });
+    return () => { mounted = false; };
+  }, []);
 
   // restore any draft attachments from context when this component mounts
   // Scope drafts by service_type_id + field name so separate AttachmentsSection
@@ -424,8 +446,14 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
           <ul className="space-y-2">
             {fields.map((f, idx) => (
               <li key={(f as any).id} className="flex items-center justify-between gap-4">
-                <div className="text-sm truncate">{(f as any).name ?? (f as any).filename ?? `Arquivo ${idx + 1}`}</div>
-                <div className="flex items-center gap-2">
+                <div className="text-sm truncate" style={{ minWidth: 0, flex: 1 }}>{(f as any).name ?? (f as any).filename ?? `Arquivo ${idx + 1}`}</div>
+                <div className="flex items-center gap-2" style={{ alignItems: 'center' }}>
+                  {/* dropdown aligned next to status badge */}
+                  <div style={{ width: 220, marginRight: '0.5rem' }}>
+                    <Dropdown value={(ctx as any).watch ? (ctx as any).watch(`${name}.${idx}.type_id`) : (getValues(`${name}.${idx}.type_id`) ?? null)} options={attachmentTypes} optionLabel="name" optionValue="id" placeholder="Tipo (opcional)" onChange={(e) => {
+                      try { (ctx as any).setValue(`${name}.${idx}.type_id`, e.value); } catch { /* ignore */ }
+                    }} style={{ width: '100%' }} />
+                  </div>
                   {/* badge: persisted vs local - placed next to action icons for consistent alignment */}
                   {((f as any).id && (f as any).created_at) ? (
                     <span className="p-badge p-badge-success" style={{ marginRight: '0.25rem', fontSize: '0.65rem', padding: '0.2rem 0.5rem' }}>Persistido</span>
