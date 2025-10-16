@@ -8,6 +8,9 @@ import { Dialog } from 'primereact/dialog';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 import AttachmentService from '../services/AttachmentService';
 import serviceOrderStatusService from '../services/serviceOrderStatusService';
+import attachmentTypeService from '../services/attachmentTypeService';
+import { ATTACHMENT_READING_SYSTEM_AREA_ID } from '../config/attachment';
+import { Dropdown } from 'primereact/dropdown';
 import { useOptionalAttachmentsDrafts } from '../contexts/AttachmentsDraftContext';
 import { Toast } from 'primereact/toast';
 
@@ -33,7 +36,7 @@ type Props = {
 export default function AttachmentsSection({ name = 'attachments', path = 'service_order', showUpload = true }: Props) {
   const ctx = useFormContext();
   const toast = React.useRef<Toast | null>(null);
-  const { control, getValues } = ctx;
+  const { control, getValues } = ctx as any;
   const { fields, append, remove } = useFieldArray({ control: control as any, name: name as any });
   const [uploadingCount, setUploadingCount] = useState(0);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -79,6 +82,27 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
     // watch ensures effect re-runs when these form values change
   }, [watchedStatus, watchedStatusId, ctx]);
 
+  // compute a stable instance key for this AttachmentsSection
+  const computeInstanceKey = useCallback(() => {
+    try {
+      const svcId = (ctx as any).getValues('service_type_id');
+      const nameStr = String(name);
+      const parts = nameStr.split('.');
+      // parent path is everything before the final segment (attachments)
+      const parentPath = parts.slice(0, Math.max(0, parts.length - 1)).join('.');
+      const parent = parentPath ? (ctx as any).getValues(parentPath) : undefined;
+      let ownerId = parent && (parent.id ?? parent.reading_id ?? parent.__attachId);
+      if (!ownerId) {
+        // create a stable local id for this reading so drafts survive index changes
+        ownerId = `local:${Math.random().toString(36).slice(2, 9)}`;
+        try { if (parentPath) (ctx as any).setValue(`${parentPath}.__attachId`, ownerId); } catch { /* ignore */ }
+      }
+      return `${svcId ?? 'default'}:${ownerId}`;
+    } catch {
+      try { return `${(ctx as any).getValues('service_type_id') ?? 'default'}:${String(name)}`; } catch { return `default:${String(name)}`; }
+    }
+  }, [ctx, name]);
+
   const handleFileSelect = useCallback(async (event: any) => {
     if (!canAttach) {
       toast.current?.show({ severity: 'warn', summary: 'Anexar desabilitado', detail: 'Ordem de serviço desabilitada para incluir novos anexos' });
@@ -109,10 +133,17 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
           path: path,
           created_at: undefined,
           fileObject: f,
+          type_id: null,
         };
         append(item as any);
         if (attachmentsDrafts && typeof attachmentsDrafts.addAttachment === 'function') {
-          attachmentsDrafts.addAttachment((ctx as any).getValues('service_type_id'), item as any);
+          try {
+            const perKey = computeInstanceKey();
+            attachmentsDrafts.addAttachment(perKey, item as any);
+          } catch {
+            // fallback to previous behavior
+            attachmentsDrafts.addAttachment((ctx as any).getValues('service_type_id'), item as any);
+          }
         }
         success += 1;
       } catch {
@@ -133,15 +164,36 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
     } catch {
       // ignore
     }
-  }, [append, path, attachmentsDrafts, ctx, canAttach]);
+  }, [append, path, attachmentsDrafts, ctx, canAttach, computeInstanceKey]);
+
+  // attachment types for the dropdown
+  const [attachmentTypes, setAttachmentTypes] = useState<Array<{ id: string; name: string }>>([]);
+  useEffect(() => {
+    let mounted = true;
+    void attachmentTypeService.listTypes({ filters: { system_area_id: ATTACHMENT_READING_SYSTEM_AREA_ID } }).then((resp) => {
+      if (!mounted) return;
+      try {
+        const opts = (resp && Array.isArray((resp as any).data)) ? (resp as any).data.map((d: any) => ({ id: d.id, name: d.name })) : [];
+        setAttachmentTypes(opts);
+      } catch {
+        setAttachmentTypes([]);
+      }
+    }).catch(() => {
+      if (mounted) setAttachmentTypes([]);
+    });
+    return () => { mounted = false; };
+  }, []);
 
   // restore any draft attachments from context when this component mounts
-  // avoid duplicating items that are already present (for example restored
-  // via form defaultValues/sessionStorage). We compare by filename+path.
+  // Scope drafts by service_type_id + field name so separate AttachmentsSection
+  // instances (for example readings.*.attachments) don't share the same drafts.
+  // For compatibility we fall back to the service_type_id-only draft if no
+  // per-name draft exists.
   useEffect(() => {
     try {
+      const perKey = computeInstanceKey();
       const svcId = (ctx as any).getValues('service_type_id');
-      const draft = attachmentsDrafts?.getDraft(svcId) ?? [];
+      const draft = attachmentsDrafts?.getDraft(perKey) ?? attachmentsDrafts?.getDraft(svcId) ?? [];
       if (Array.isArray(draft) && draft.length > 0) {
         // build a set of existing keys to avoid duplicates
         const existing = new Set<string>();
@@ -169,7 +221,7 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
       // ignore
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [append, attachmentsDrafts, name]);
+  }, [append, attachmentsDrafts, computeInstanceKey]);
 
   const handleDownload = useCallback(async (file: AttachmentsOrderService, index?: number) => {
     try {
@@ -337,13 +389,16 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
         // local-only, just remove from field array and from draft context if present
         try {
           const svcId = (ctx as any).getValues('service_type_id');
-          if (attachmentsDrafts && typeof attachmentsDrafts.getDraft === 'function') {
-            const draft = attachmentsDrafts.getDraft(svcId) ?? [];
+          if (attachmentsDrafts) {
+            const perKey = computeInstanceKey();
+            const draft = (typeof attachmentsDrafts.getDraft === 'function') ? (attachmentsDrafts.getDraft(perKey) ?? attachmentsDrafts.getDraft(svcId) ?? []) : [];
             // find by filename+path to compute proper draft index (form index may be offset)
             const key = `${String(file.filename ?? file.name ?? '')}:${String(file.path ?? '')}`;
             const draftIndex = draft.findIndex((d) => `${String((d as any).filename ?? (d as any).name ?? '')}:${String((d as any).path ?? '')}` === key);
             if (draftIndex >= 0 && typeof attachmentsDrafts.removeAttachment === 'function') {
-              attachmentsDrafts.removeAttachment(svcId, draftIndex);
+              // remove from perKey if present, otherwise remove from svcId
+              const removeKey = attachmentsDrafts.getDraft(perKey) ? perKey : svcId;
+              attachmentsDrafts.removeAttachment(removeKey as any, draftIndex);
             }
           }
         } catch {
@@ -359,7 +414,7 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
     } catch (e) {
       if (typeof console !== 'undefined' && typeof console.error === 'function') console.error('delete attachment error', e);
     }
-  }, [getValues, name, remove, attachmentsDrafts, ctx]);
+  }, [getValues, name, remove, attachmentsDrafts, ctx, showUpload, computeInstanceKey]);
 
   return (
     <div>
@@ -391,8 +446,14 @@ export default function AttachmentsSection({ name = 'attachments', path = 'servi
           <ul className="space-y-2">
             {fields.map((f, idx) => (
               <li key={(f as any).id} className="flex items-center justify-between gap-4">
-                <div className="text-sm truncate">{(f as any).name ?? (f as any).filename ?? `Arquivo ${idx + 1}`}</div>
-                <div className="flex items-center gap-2">
+                <div className="text-sm truncate" style={{ minWidth: 0, flex: 1 }}>{(f as any).name ?? (f as any).filename ?? `Arquivo ${idx + 1}`}</div>
+                <div className="flex items-center gap-2" style={{ alignItems: 'center' }}>
+                  {/* dropdown aligned next to status badge */}
+                  <div style={{ width: 220, marginRight: '0.5rem' }}>
+                    <Dropdown value={(ctx as any).watch ? (ctx as any).watch(`${name}.${idx}.type_id`) : (getValues(`${name}.${idx}.type_id`) ?? null)} options={attachmentTypes} optionLabel="name" optionValue="id" placeholder="Tipo (opcional)" onChange={(e) => {
+                      try { (ctx as any).setValue(`${name}.${idx}.type_id`, e.value); } catch { /* ignore */ }
+                    }} style={{ width: '100%' }} />
+                  </div>
                   {/* badge: persisted vs local - placed next to action icons for consistent alignment */}
                   {((f as any).id && (f as any).created_at) ? (
                     <span className="p-badge p-badge-success" style={{ marginRight: '0.25rem', fontSize: '0.65rem', padding: '0.2rem 0.5rem' }}>Persistido</span>

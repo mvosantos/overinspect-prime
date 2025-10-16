@@ -28,10 +28,10 @@ import ScheduleSection from './general/ScheduleSection';
 import PaymentsSection from './general/PaymentsSection';
 import OPERATION_SECTIONS from '../../config/operationSections';
 import GoodsSection from './operationSections/GoodsSection';
-import TalliesSection from './operationSections/TalliesSection';
 import PageFooter from '../../components/PageFooter';
 import { useSave } from '../../contexts/SaveContext';
 import { mapServicesSourceToForm, mapSchedulesSourceToForm } from '../../utils/formSeedHelpers';
+import TallySection from './operationSections/TallySection';
 
 // Form-level types for items (these represent the shape we send to the API)
 
@@ -1185,7 +1185,7 @@ export default function NewServiceOrder() {
                       return <GoodsSection currentOrderId={currentOrderId} fieldConfigs={goodsFieldConfigs} />;
                     }
                     case 'tallies':
-                      return <TalliesSection currentOrderId={currentOrderId} selectedServiceTypeId={selectedServiceTypeId} />;
+                      return <TallySection currentOrderId={currentOrderId} selectedServiceTypeId={selectedServiceTypeId} />;
                     default:
                       return <div>Operações: seção desconhecida</div>;
                   }
